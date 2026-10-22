@@ -123,6 +123,8 @@ details>:last-child{margin-bottom:14px}
 #top .l b{font:600 20px/1.1 var(--fm);font-variant-numeric:tabular-nums;color:var(--o);white-space:nowrap}
 #alertbar{top:12px;left:60px;max-width:calc(100% - 150px);padding:10px 14px;font-size:14px;font-weight:600;line-height:1.3}
 #ptoggle{position:absolute;left:12px;bottom:34px;z-index:1200;width:40px;padding:0;background:rgba(13,23,19,.95);color:var(--t);border-color:var(--line2)}
+.tl-dark{filter:brightness(1.9) contrast(1.3)}
+.tl-light{filter:contrast(1.1) saturate(1.15)}
 .toast{position:fixed;top:12px;left:50%;transform:translateX(-50%);max-width:min(92vw,520px);padding:10px 16px;z-index:7000;text-align:center;font-size:14px;color:var(--t);background:rgba(9,17,13,.96);border:1px solid var(--o);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
 
 /* ----- карта (Leaflet) ----- */
@@ -224,9 +226,9 @@ details>:last-child{margin-bottom:14px}
    <svg class="logo" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="20" cy="20" r="16"/><circle cx="20" cy="20" r="9" opacity=".6"/><path d="M20 20 31 9"/><circle cx="20" cy="20" r="2.5" fill="currentColor" stroke="none"/><circle cx="29" cy="27" r="2.4" fill="#ffb43a" stroke="none"/></svg>
    <div><h1>ETA Map</h1><div class="sub">Час підльоту до об'єктів на карті</div></div>
   </header>
-  <div id="modes"><button id="mManual" class="on"><svg class="i"><use href="#i-hand"/></svg>Ручний</button><button id="mAuto"><svg class="i"><use href="#i-radar"/></svg>Авто</button><button id="mShared"><svg class="i"><use href="#i-users"/></svg>Спільна</button></div>
+  <div id="modes"><button id="mAuto" class="on"><svg class="i"><use href="#i-radar"/></svg>Авто</button><button id="mManual"><svg class="i"><use href="#i-hand"/></svg>Ручний</button></div>
   <div id="sbody">
-<div id="manual">
+<div id="manual" style="display:none">
   <div class="ctl">
    <button id="start"><svg class="i"><use href="#i-play"/></svg>Старт</button>
    <button id="pause" class="o"><svg class="i"><use href="#i-pause"/></svg>Пауза</button>
@@ -255,26 +257,14 @@ details>:last-child{margin-bottom:14px}
 
   <div class="note">Перетягуйте маркери по карті. Клік по маркеру відкриває вікно з кнопкою «Видалити». Час = відстань по прямій ÷ швидкість, рахується від поточної позиції цілі, тому зміна швидкості під час руху перераховує час одразу. Це геометричний розрахунок, а не реальна оцінка загрози; за оповіщеннями дивіться офіційні джерела.</div>
 </div>
-<div id="auto" style="display:none">
- <h3>Тривоги в Рівненській області</h3>
- <div class="note" style="margin:0 0 8px">Дані: Ukraine Alarm API (api.ukrainealarm.com). Цей API віддає стан тривог по областях, районах і громадах, але не координати та швидкості окремих БпЛА, тому час підльоту тут не рахується: для нього використовуйте ручний режим.</div>
- <details><summary class="note" style="cursor:pointer">Додатково: ключ і проксі</summary>
- <div class="row"><label>API ключ</label><input type="password" id="akey" style="flex:1;min-width:0" placeholder="не потрібен, якщо ключ у проксі" autocomplete="off"></div>
- <div class="row"><label>Проксі</label><input type="text" id="aproxy" value="https://dry-block-56f8.granvv98.workers.dev" style="flex:1;min-width:0" placeholder="https://назва.ваш-логін.workers.dev (необов'язково)" autocomplete="off" spellcheck="false"></div>
- </details>
- <div class="row"><label>Оновлення</label><select id="aint"><option value="10">10 с</option><option value="15" selected>15 с</option><option value="30">30 с</option><option value="60">60 с</option></select>
-  <label class="chk" style="margin:0"><input type="checkbox" id="asnd" checked> звук</label></div>
- <div class="ctl"><button id="aconn"><svg class="i"><use href="#i-play"/></svg>Підключити</button><button id="astop" class="o"><svg class="i"><use href="#i-stop"/></svg>Зупинити</button></div>
- <div id="astat" class="note"></div>
+<div id="auto">
  <div id="abanner"></div>
- <h3>Активні тривоги</h3><div id="alist"><div class="note">Не підключено.</div></div>
- <h3>Райони області</h3><div id="rlist"></div>
-</div>
-<div id="shared" style="display:none">
- <h3>Спільна карта</h3>
- <div class="note" style="margin:0 0 8px">Точки на карті вводить адміністратор, і всі, хто відкрив сайт, бачать їх одночасно. Дані орієнтовні й неофіційні: орієнтуйтесь на офіційні сповіщення про тривогу.</div>
+ <div id="astat" class="note"></div>
+ <label class="chk"><input type="checkbox" id="asnd" checked> Звук при зміні стану тривоги</label>
+ <h3>Цілі й об'єкти</h3>
+ <div class="note" style="margin:0 0 8px">Цілі й об'єкти на карті ставить адміністратор, і всі, хто відкрив сайт, бачать їх одночасно. Стан тривог береться з Ukraine Alarm API (api.ukrainealarm.com). Дані орієнтовні й неофіційні: орієнтуйтесь на офіційні сповіщення про тривогу.</div>
  <div id="shstat" class="note"></div>
- <div id="shsetup" class="abn part" style="display:none">Спільна карта ще не підключена до бази даних. Заповніть файл <b>firebase-config.js</b> за інструкцією з README.md.</div>
+ <div id="shsetup" class="abn part" style="display:none">Цілі на карті ще не підключені до бази даних. Заповніть файл <b>firebase-config.js</b> за інструкцією з README.md.</div>
  <div id="shauth" style="margin-top:10px"></div>
  <div id="shadm" style="display:none">
   <div class="ctl"><button id="shT"><svg class="i"><use href="#i-plus"/></svg>Ціль</button><button id="shD" class="o"><svg class="i"><use href="#i-plus"/></svg>Об'єкт</button></div>
@@ -282,6 +272,8 @@ details>:last-child{margin-bottom:14px}
  </div>
  <h3>Цілі</h3><div id="shlist"></div>
  <h3>Об'єкти</h3><div id="shdests"></div>
+ <h3>Активні тривоги</h3><div id="alist"><div class="note">Не підключено.</div></div>
+ <h3>Райони області</h3><div id="rlist"></div>
 </div>
  </div>
  </div>
@@ -498,33 +490,40 @@ function ui(force){
   top.innerHTML='<div class="t">Відлік до підльоту'+(simK()>1?' · x'+simK():'')+(state.running?'':' · ПАУЗА')+'</div>'+
    lines.slice(0,4).map(l=>`<div class="l"><span>${esc(l.n)}</span><b style="${l.s<0?'color:#ff5a5a':''}">${l.s<0?'ДОСЯГНУТО':fmtDur(l.s)}</b></div>`).join("");}
 }
-/* ---------- автоматичний режим (Ukraine Alarm API) ---------- */
+/* ---------- тривоги: Ukraine Alarm API (api.ukrainealarm.com) ---------- */
 const API_DIRECT="https://api.ukrainealarm.com";
-const DEFAULT_PROXY="https://dry-block-56f8.granvv98.workers.dev";
-const AUTO={key:"",proxy:DEFAULT_PROXY,int:15,sound:true,timer:null,busy:false,ids:null,districts:[],oblastId:null,prev:null,ctx:null};
+const API_KEY="75ca4fbf:b3f5278f0bab201af061ce4179659393";
+const API_PROXY="https://dry-block-56f8.granvv98.workers.dev"; // запасний шлях, якщо браузер не пускає прямий запит (CORS)
+const AUTO={sound:true,int:15,base:API_DIRECT,timer:null,busy:false,ids:null,districts:[],oblastId:null,prev:null,ctx:null};
 const ALERT_NAMES={AIR:"Повітряна тривога",ARTILLERY:"Артилерійський обстріл",URBAN_FIGHTS:"Вуличні бої",CHEMICAL:"Хімічна загроза",NUCLEAR:"Радіаційна загроза",UNKNOWN:"Невідома загроза"};
 const childrenOf=n=>n.regionChildList||n.regionChildren||n.children||n.states||[];
 function findNode(n,pred){if(!n||typeof n!=="object")return null;if(pred(n))return n;
  const ch=Array.isArray(n)?n:childrenOf(n);for(const c of ch){const f=findNode(c,pred);if(f)return f;}return null;}
-function aSave(){try{localStorage.setItem("etaMapAuto",JSON.stringify({key:AUTO.key,proxy:AUTO.proxy,int:AUTO.int,sound:AUTO.sound,mode:state.mode}));}catch(e){}}
+function aSave(){try{localStorage.setItem("etaMapAuto2",JSON.stringify({sound:AUTO.sound}));}catch(e){}}
 async function apiGet(path){
- const r=await fetch((AUTO.proxy||API_DIRECT)+"/api/v3"+path,{headers:Object.assign({"Accept":"application/json"},AUTO.key?{"Authorization":AUTO.key}:{}),cache:"no-store"});
- if(r.status===401||r.status===403)throw new Error("AUTH");
- if(r.status===429)throw new Error("RATE");
- if(!r.ok)throw new Error("HTTP "+r.status);
- return r.json();
+ const go=async base=>{
+  const r=await fetch(base+"/api/v3"+path,{headers:{"Accept":"application/json","Authorization":API_KEY},cache:"no-store"});
+  if(r.status===401||r.status===403)throw new Error("AUTH");
+  if(r.status===429)throw new Error("RATE");
+  if(!r.ok)throw new Error("HTTP "+r.status);
+  return r.json();};
+ try{return await go(AUTO.base);}
+ catch(e){
+  if(e instanceof TypeError&&AUTO.base===API_DIRECT){AUTO.base=API_PROXY;return await go(AUTO.base);}
+  throw e;}
 }
 function beep(){try{AUTO.ctx=AUTO.ctx||new (window.AudioContext||window.webkitAudioContext)();const c=AUTO.ctx;
  [0,0.45].forEach(d=>{const o=c.createOscillator(),g=c.createGain();o.frequency.value=880;o.connect(g);g.connect(c.destination);
   g.gain.setValueAtTime(.2,c.currentTime+d);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+d+.4);o.start(c.currentTime+d);o.stop(c.currentTime+d+.4);});}catch(e){}}
 function aStatus(msg,bad){const el=$("astat");el.textContent=msg;el.style.color=bad?"#ff5a5a":"";}
+function placeTop(){const b=$("alertbar");$("top").style.marginTop=b.style.display!=="none"?(b.offsetHeight+8)+"px":"0";}
 function aError(e){
  const m=e&&e.message||"";
- if(m==="AUTH"){aStop();aStatus("Ключ не прийнято (401/403). Перевірте ключ і натисніть «Підключити».",true);}
- else if(m==="RATE")aStatus("Забагато запитів (429). Збільште інтервал оновлення.",true);
+ if(m==="AUTH"){aStop();aStatus("Ключ API не прийнято (401/403). Перевірте ключ у коді сторінки.",true);}
+ else if(m==="RATE")aStatus("Забагато запитів (429). Наступна спроба за кілька секунд.",true);
  else if(m==="NOREGION")aStatus("У дереві регіонів не знайдено «Рівненська область».",true);
  else if(/^HTTP/.test(m))aStatus("Помилка сервера: "+m,true);
- else aStatus("Не вдалося звернутись до api.ukrainealarm.com: немає інтернету або сервер не дозволяє запити з браузера (CORS). Вкажіть адресу проксі (Cloudflare Worker) у полі «Проксі».",true);
+ else aStatus("Не вдалося звернутись до api.ukrainealarm.com. Перевірте інтернет.",true);
 }
 async function aPoll(){
  if(AUTO.busy)return;AUTO.busy=true;
@@ -540,8 +539,9 @@ async function aPoll(){
     childrenOf(n).forEach(c=>walk(c,cur));})(node,null);
   }
   const alerts=await apiGet("/alerts");
+  if(state.mode!=="auto")return;
   aRender(Array.isArray(alerts)?alerts:[]);
-  aStatus("Оновлено "+fmtClock(Date.now())+" · кожні "+AUTO.int+" с",false);
+  aStatus("Тривоги оновлено "+fmtClock(Date.now())+" · кожні "+AUTO.int+" с",false);
  }catch(e){aError(e);}
  finally{AUTO.busy=false;}
 }
@@ -562,6 +562,7 @@ function aRender(list){
  bar.style.color=cls==="red"?"#fff":cls==="part"?"#ff9a1f":"#3dff7a";
  bar.style.borderColor=cls==="red"?"#ff5a5a":cls==="part"?"#ff9a1f":"#3dff7a";
  bar.style.background=cls==="red"?"rgba(90,18,18,.95)":"rgba(6,16,10,.92)";
+ placeTop();
  const al=$("alist");al.innerHTML="";
  if(!mine.length)al.innerHTML='<div class="note">Активних тривог немає.</div>';
  mine.forEach(a=>{const d=document.createElement("div");d.className="ar on";
@@ -575,24 +576,20 @@ function aRender(list){
  AUTO.prev=now;
 }
 function aStart(){
- const k=$("akey").value.trim(),px=$("aproxy").value.trim().replace(/\/+$/,"")||DEFAULT_PROXY;
- AUTO.key=k;AUTO.proxy=px;AUTO.int=+$("aint").value||15;AUTO.sound=$("asnd").checked;
- clearInterval(AUTO.timer);AUTO.ids=null;AUTO.prev=null;aSave();
- aStatus("Підключення…",false);aPoll();AUTO.timer=setInterval(aPoll,AUTO.int*1000);
+ clearInterval(AUTO.timer);AUTO.ids=null;AUTO.prev=null;AUTO.base=API_DIRECT;
+ aStatus("Підключення до api.ukrainealarm.com…",false);aPoll();AUTO.timer=setInterval(aPoll,AUTO.int*1000);
 }
 function aStop(){clearInterval(AUTO.timer);AUTO.timer=null;}
 function manualLayers(){const a=[];state.targets.forEach(t=>{a.push(t.marker,t.line,t.arrow);if(cfg.showRadius)a.push(t.rc);});state.dests.forEach(d=>a.push(d.marker,d.circle));return a;}
 function setMode(m){
  if(m===state.mode)return;
  const prev=state.mode;state.mode=m;
- ["manual","auto","shared"].forEach(k=>{$(k).style.display=k===m?"":"none";});
- $("mManual").classList.toggle("on",m==="manual");$("mAuto").classList.toggle("on",m==="auto");$("mShared").classList.toggle("on",m==="shared");
+ ["auto","manual"].forEach(k=>{$(k).style.display=k===m?"":"none";});
+ $("mAuto").classList.toggle("on",m==="auto");$("mManual").classList.toggle("on",m==="manual");
  if(prev==="manual"){state.wasRunning=state.running;state.running=false;manualLayers().forEach(l=>state.map.removeLayer(l));$("top").style.display="none";}
- if(prev==="auto"){aStop();$("alertbar").style.display="none";}
- if(prev==="shared")shHide();
+ if(prev==="auto"){aStop();shHide();$("alertbar").style.display="none";placeTop();}
  if(m==="manual"){manualLayers().forEach(l=>{if(!state.map.hasLayer(l))l.addTo(state.map);});state.running=state.wasRunning!==false;ui(true);}
- if(m==="shared")shShow();
- aSave();
+ if(m==="auto"){shShow();aStart();}
 }
 
 /* ---------- спільна карта (Firebase Realtime Database) ---------- */
@@ -803,7 +800,7 @@ function shTick(force){
  lines.sort((a,b)=>a.s-b.s);const top=$("top");
  if(!lines.length)top.style.display="none";
  else{top.style.display="block";
-  top.innerHTML='<div class="t">Відлік до підльоту · спільна карта</div>'+lines.slice(0,4).map(l=>`<div class="l"><span>${esc(l.n)}</span><b style="${l.s<0?'color:#ff5a5a':''}">${l.s<0?'ДОСЯГНУТО':fmtDur(l.s)}</b></div>`).join("");}
+  top.innerHTML='<div class="t">Відлік до підльоту</div>'+lines.slice(0,4).map(l=>`<div class="l"><span>${esc(l.n)}</span><b style="${l.s<0?'color:#ff5a5a':''}">${l.s<0?'ДОСЯГНУТО':fmtDur(l.s)}</b></div>`).join("");}
 }
 function shShow(){SH.layersOn=true;shInit();shRenderAuth();shRebuild();shRenderList(true);if(SH.ready)shStatus();}
 function shHide(){SH.layersOn=false;shClearLayers();$("top").style.display="none";}
@@ -815,17 +812,31 @@ function tick(now){
    const D=dest.marker.getLatLng(),Dp={lat:D.lat,lng:D.lng};const dm=dist(t.cur,Dp);if(dm<300)return;
    t.cur=moveTo(t.cur,bearing(t.cur,Dp),Math.min(dm,t.speed/3.6*dt));t.marker.setLatLng(ll(t.cur));});
  }
- if(state.mode==="shared")shTick(false);
+ if(state.mode==="auto")shTick(false);
  ui(false);requestAnimationFrame(tick);
 }
 
-/* ---------- ініціалізація ---------- */
-function loadDefaults(){
- state.ptn=2;state.col=0;state.tn=0;
- const rv=CITIES["Рівне"],db=CITIES["Дубно"];
- const d=addDest({lat:rv[0],lng:rv[1]},"Точка 2 · Рівне");
- addTarget({lat:db[0],lng:db[1]},"Точка 1 · Дубно",200,d.id);
+
+/* ---------- межа Рівненської області ---------- */
+function drawBorder(gj){
+ const g=state.border;g.clearLayers();
+ L.geoJSON(gj,{interactive:false,style:{color:"#ffb43a",weight:9,opacity:.18,fill:false}}).addTo(g);
+ L.geoJSON(gj,{interactive:false,style:{color:"#ffb43a",weight:2.5,opacity:.95,fillColor:"#ffb43a",fillOpacity:.04}}).addTo(g);
 }
+async function loadBorder(){
+ const K="etaBorderRivne1";
+ try{const c=JSON.parse(localStorage.getItem(K)||"null");if(c){drawBorder(c);return;}}catch(e){}
+ try{
+  const r=await fetch("https://nominatim.openstreetmap.org/search?q="+encodeURIComponent("Рівненська область, Україна")+"&format=jsonv2&polygon_geojson=1&polygon_threshold=0.002&limit=5&accept-language=uk");
+  const a=await r.json();
+  const hit=a.find(x=>x.geojson&&/Polygon/.test(x.geojson.type)&&x.category==="boundary")||a.find(x=>x.geojson&&/Polygon/.test(x.geojson.type));
+  if(!hit)throw 0;
+  drawBorder(hit.geojson);
+  try{localStorage.setItem(K,JSON.stringify(hit.geojson));}catch(e){}
+ }catch(e){}
+}
+/* ---------- ініціалізація ---------- */
+function loadDefaults(){state.ptn=0;state.col=0;state.tn=0;}
 function clearAll(){state.targets.slice().forEach(t=>[t.marker,t.line,t.arrow,t.rc].forEach(l=>state.map.removeLayer(l)));
  state.dests.slice().forEach(d=>{state.map.removeLayer(d.marker);state.map.removeLayer(d.circle);});state.targets=[];state.dests=[];}
 function init(){
@@ -838,7 +849,6 @@ function init(){
   "Світла (Esri)":mk("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",{maxNativeZoom:16,attribution:"Tiles © Esri"}),
   "Схема (Esri)":mk("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",{attribution:"Tiles © Esri"}),
   "Супутник (Esri)":mk("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{attribution:"Tiles © Esri"}),
-  "OpenStreetMap":mk("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OpenStreetMap"}),
   "Рельєф (OpenTopo)":mk("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",{subdomains:"abc",maxZoom:17,attribution:"© OpenTopoMap"}),
   "Топо (Esri)":mk("https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",{attribution:"Tiles © Esri"}),
   "National Geographic (Esri)":mk("https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}",{maxNativeZoom:16,attribution:"Tiles © Esri, National Geographic"}),
@@ -860,9 +870,11 @@ function init(){
   for(let lo=Math.ceil(nw.lng/lngStep)*lngStep;lo<=se.lng;lo+=lngStep){const x=m.project(L.latLng(nw.lat,lo),z).x-o.x;ctx.moveTo(x+.5,0);ctx.lineTo(x+.5,sz.y);}
   ctx.stroke();return t;}});
  state.grid=new GridKm({maxZoom:19,attribution:""});
- state.lc=L.control.layers(layers,{"Сітка 10×10 км":state.grid}).addTo(map);
- state.grid.addTo(map);L.control.scale({metric:true,imperial:false}).addTo(map);
+ state.border=L.layerGroup();
+ state.lc=L.control.layers(layers,{"Сітка 10×10 км":state.grid,"Межа Рівненської області":state.border}).addTo(map);
+ state.border.addTo(map);L.control.scale({metric:true,imperial:false}).addTo(map);
  map.fitBounds(state.oblast);
+ loadBorder();
  ["Рівне","Дубно","Острог","Здолбунів","Корець","Костопіль","Березне","Сарни","Рокитне","Дубровиця","Володимирець","Зарічне","Радивилів","Млинів"].forEach(n=>{const c=CITIES[n];
   L.marker(c,{interactive:false,icon:L.divIcon({className:"",html:`<div style="color:#bfe9cb;font:11px Consolas;text-shadow:0 0 3px #000,0 0 3px #000;white-space:nowrap;transform:translate(6px,-6px)"><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#3dff7a;margin-right:4px"></span>${n}</div>`,iconSize:[0,0]})}).addTo(map);});
 
@@ -872,6 +884,7 @@ function init(){
  // відновлення збереженого
  let saved=null;try{saved=JSON.parse(localStorage.getItem("etaMapV2")||"null");}catch(e){}
  if(saved&&saved.cfg)Object.assign(cfg,saved.cfg);
+ if(saved&&saved.targets&&saved.dests&&saved.targets.length===1&&saved.dests.length===1&&saved.targets[0].name==="Точка 1 · Дубно"&&saved.dests[0].name==="Точка 2 · Рівне")saved=null; // старі демо-точки більше не потрібні
  if(saved&&Array.isArray(saved.dests)&&Array.isArray(saved.targets)){
   state.ptn=saved.ptn||0;state.col=saved.col||0;state.uid=saved.uid||1;
   saved.dests.forEach(d=>addDest({lat:d.lat,lng:d.lng},d.name,d.id));
@@ -888,19 +901,16 @@ function init(){
 
  
  
- $("mManual").onclick=()=>setMode("manual");$("mAuto").onclick=()=>setMode("auto");$("mShared").onclick=()=>setMode("shared");
+ $("mAuto").onclick=()=>setMode("auto");$("mManual").onclick=()=>setMode("manual");
  $("shT").onclick=()=>setPick({type:"sh",kind:"t"},"Клікніть на карті — де поставити ціль");
  $("shD").onclick=()=>setPick({type:"sh",kind:"d"},"Клікніть на карті — де поставити об'єкт");
  $("shGo").onclick=()=>{SH.data.targets.forEach(t=>{if(!t.moving){t.moving=true;t.t0=shNow();}});shTouch();shTick(true);};
  $("shPause").onclick=()=>{SH.data.targets.forEach(t=>{if(t.moving){shRebase(t);t.moving=false;}});shTouch();shTick(true);};
  $("shReset").onclick=()=>{SH.data.targets.forEach(t=>{t.start={lat:t.origin.lat,lng:t.origin.lng};t.moving=false;t.t0=shNow();});shTouch();shTick(true);};
  $("shClear").onclick=()=>{if(!confirm("Видалити всі цілі й об'єкти на спільній карті для всіх?"))return;SH.data.targets=[];SH.data.dests=[];shTouch();shRebuild();shRenderList(true);};
- $("aconn").onclick=aStart;$("astop").onclick=()=>{aStop();aStatus("Зупинено.",false);};
  $("asnd").onchange=()=>{AUTO.sound=$("asnd").checked;aSave();};
- $("aint").onchange=()=>{AUTO.int=+$("aint").value;aSave();if(AUTO.timer)aStart();};
- try{const sa=JSON.parse(localStorage.getItem("etaMapAuto")||"null");
-  if(sa){if(sa.key)$("akey").value=sa.key;if(sa.proxy)$("aproxy").value=sa.proxy;if(sa.int)$("aint").value=String(sa.int);$("asnd").checked=sa.sound!==false;AUTO.sound=sa.sound!==false;
-   if(sa.mode==="auto"){setMode("auto");aStart();}else if(sa.mode==="shared")setMode("shared");}}catch(e){}
+ try{const sa=JSON.parse(localStorage.getItem("etaMapAuto2")||"null");if(sa){AUTO.sound=sa.sound!==false;$("asnd").checked=AUTO.sound;}}catch(e){}
+ setMode("auto");
 
  document.body.dataset.sheet=document.body.dataset.sheet||"mid";
  (function(){const g=$("grab"),lv=["min","mid","max"];let y0=null,moved=false;
@@ -914,7 +924,7 @@ function init(){
  })();
  $("ptoggle").onclick=()=>document.body.classList.toggle("sbhide");
  if(window.ResizeObserver)new ResizeObserver(()=>map.invalidateSize()).observe($("mapwrap"));
- window.addEventListener("resize",()=>map.invalidateSize());
+ window.addEventListener("resize",()=>{map.invalidateSize();placeTop();});
  map.on("zoomend",()=>ui(true));
  map.on("click",e=>{const p={lat:e.latlng.lat,lng:e.latlng.lng},k=state.pick;if(!k)return;
   if(k.type==="sh"){shMapClick(p,k.kind);clearPick();return;}
@@ -936,7 +946,7 @@ function init(){
  $("reset").onclick=()=>{state.targets.forEach(t=>{t.cur={...t.start};t.reached=false;t.marker.setLatLng(ll(t.start));});ui(true);};
  $("home").onclick=()=>map.fitBounds(state.oblast);
  $("sim").onchange=()=>ui(true);
- $("factory").onclick=()=>{if(!confirm("Видалити всі точки і повернути початкові (Дубно → Рівне)?"))return;
+ $("factory").onclick=()=>{if(!confirm("Видалити всі цілі й об'єкти?"))return;
   clearAll();state.uid=1;loadDefaults();renderPanel();ui(true);save();};
  state.last=performance.now();requestAnimationFrame(tick);
 }
