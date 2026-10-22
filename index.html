@@ -205,7 +205,6 @@ details>:last-child{margin-bottom:14px}
 <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></symbol>
 <symbol id="i-hand" viewBox="0 0 24 24"><path d="M8 13V5a2 2 0 0 1 4 0v6M12 11V4a2 2 0 0 1 4 0v8M16 12V7a2 2 0 0 1 4 0v8a7 7 0 0 1-7 7h-1a7 7 0 0 1-6-3.5L3 14a2 2 0 0 1 3-2l2 2"/></symbol>
 <symbol id="i-radar" viewBox="0 0 24 24"><path d="M12 12 19 5M12 3a9 9 0 1 0 9 9M12 7a5 5 0 1 0 5 5M12 12h.01"/></symbol>
-<symbol id="i-globe" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></symbol>
 <symbol id="i-target" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6"/></symbol>
 <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></symbol>
 <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></symbol>
@@ -227,11 +226,6 @@ details>:last-child{margin-bottom:14px}
   </header>
   <div id="modes"><button id="mManual" class="on"><svg class="i"><use href="#i-hand"/></svg>Ручний</button><button id="mAuto"><svg class="i"><use href="#i-radar"/></svg>Авто</button><button id="mShared"><svg class="i"><use href="#i-users"/></svg>Спільна</button></div>
   <div id="sbody">
-  <details id="gbox"><summary><svg class="i"><use href="#i-globe"/></svg>Google Maps<span class="tag">потрібен ключ</span></summary>
-   <div class="row"><label>Ключ Google</label><input type="password" id="gkey" style="flex:1;min-width:0" placeholder="AIza…" autocomplete="off"></div>
-   <div class="ctl"><button id="gconn">Підключити Google</button></div>
-   <div id="gstat" class="note">Ключ Maps JavaScript API зберігається лише у вашому браузері. Після підключення в перемикачі шарів на карті з'являться «Google · …».</div>
-  </details>
 <div id="manual">
   <div class="ctl">
    <button id="start"><svg class="i"><use href="#i-play"/></svg>Старт</button>
@@ -264,7 +258,10 @@ details>:last-child{margin-bottom:14px}
 <div id="auto" style="display:none">
  <h3>Тривоги в Рівненській області</h3>
  <div class="note" style="margin:0 0 8px">Дані: Ukraine Alarm API (api.ukrainealarm.com). Цей API віддає стан тривог по областях, районах і громадах, але не координати та швидкості окремих БпЛА, тому час підльоту тут не рахується: для нього використовуйте ручний режим.</div>
- <div class="row"><label>API ключ</label><input type="password" id="akey" style="flex:1;min-width:0" placeholder="вставте ключ" autocomplete="off"></div>
+ <details><summary class="note" style="cursor:pointer">Додатково: ключ і проксі</summary>
+ <div class="row"><label>API ключ</label><input type="password" id="akey" style="flex:1;min-width:0" placeholder="не потрібен, якщо ключ у проксі" autocomplete="off"></div>
+ <div class="row"><label>Проксі</label><input type="text" id="aproxy" value="https://dry-block-56f8.granvv98.workers.dev" style="flex:1;min-width:0" placeholder="https://назва.ваш-логін.workers.dev (необов'язково)" autocomplete="off" spellcheck="false"></div>
+ </details>
  <div class="row"><label>Оновлення</label><select id="aint"><option value="10">10 с</option><option value="15" selected>15 с</option><option value="30">30 с</option><option value="60">60 с</option></select>
   <label class="chk" style="margin:0"><input type="checkbox" id="asnd" checked> звук</label></div>
  <div class="ctl"><button id="aconn"><svg class="i"><use href="#i-play"/></svg>Підключити</button><button id="astop" class="o"><svg class="i"><use href="#i-stop"/></svg>Зупинити</button></div>
@@ -502,15 +499,16 @@ function ui(force){
    lines.slice(0,4).map(l=>`<div class="l"><span>${esc(l.n)}</span><b style="${l.s<0?'color:#ff5a5a':''}">${l.s<0?'ДОСЯГНУТО':fmtDur(l.s)}</b></div>`).join("");}
 }
 /* ---------- автоматичний режим (Ukraine Alarm API) ---------- */
-const API="https://api.ukrainealarm.com/api/v3";
-const AUTO={key:"",int:15,sound:true,timer:null,busy:false,ids:null,districts:[],oblastId:null,prev:null,ctx:null};
+const API_DIRECT="https://api.ukrainealarm.com";
+const DEFAULT_PROXY="https://dry-block-56f8.granvv98.workers.dev";
+const AUTO={key:"",proxy:DEFAULT_PROXY,int:15,sound:true,timer:null,busy:false,ids:null,districts:[],oblastId:null,prev:null,ctx:null};
 const ALERT_NAMES={AIR:"Повітряна тривога",ARTILLERY:"Артилерійський обстріл",URBAN_FIGHTS:"Вуличні бої",CHEMICAL:"Хімічна загроза",NUCLEAR:"Радіаційна загроза",UNKNOWN:"Невідома загроза"};
 const childrenOf=n=>n.regionChildList||n.regionChildren||n.children||n.states||[];
 function findNode(n,pred){if(!n||typeof n!=="object")return null;if(pred(n))return n;
  const ch=Array.isArray(n)?n:childrenOf(n);for(const c of ch){const f=findNode(c,pred);if(f)return f;}return null;}
-function aSave(){try{localStorage.setItem("etaMapAuto",JSON.stringify({key:AUTO.key,int:AUTO.int,sound:AUTO.sound,mode:state.mode}));}catch(e){}}
+function aSave(){try{localStorage.setItem("etaMapAuto",JSON.stringify({key:AUTO.key,proxy:AUTO.proxy,int:AUTO.int,sound:AUTO.sound,mode:state.mode}));}catch(e){}}
 async function apiGet(path){
- const r=await fetch(API+path,{headers:{"Authorization":AUTO.key,"Accept":"application/json"},cache:"no-store"});
+ const r=await fetch((AUTO.proxy||API_DIRECT)+"/api/v3"+path,{headers:Object.assign({"Accept":"application/json"},AUTO.key?{"Authorization":AUTO.key}:{}),cache:"no-store"});
  if(r.status===401||r.status===403)throw new Error("AUTH");
  if(r.status===429)throw new Error("RATE");
  if(!r.ok)throw new Error("HTTP "+r.status);
@@ -526,7 +524,7 @@ function aError(e){
  else if(m==="RATE")aStatus("Забагато запитів (429). Збільште інтервал оновлення.",true);
  else if(m==="NOREGION")aStatus("У дереві регіонів не знайдено «Рівненська область».",true);
  else if(/^HTTP/.test(m))aStatus("Помилка сервера: "+m,true);
- else aStatus("Не вдалося звернутись до api.ukrainealarm.com: немає інтернету або сервер не дозволяє запити з браузера (CORS). Якщо це CORS, потрібен невеликий проксі.",true);
+ else aStatus("Не вдалося звернутись до api.ukrainealarm.com: немає інтернету або сервер не дозволяє запити з браузера (CORS). Вкажіть адресу проксі (Cloudflare Worker) у полі «Проксі».",true);
 }
 async function aPoll(){
  if(AUTO.busy)return;AUTO.busy=true;
@@ -577,8 +575,8 @@ function aRender(list){
  AUTO.prev=now;
 }
 function aStart(){
- const k=$("akey").value.trim();if(!k){toast("Вставте API ключ");return;}
- AUTO.key=k;AUTO.int=+$("aint").value||15;AUTO.sound=$("asnd").checked;
+ const k=$("akey").value.trim(),px=$("aproxy").value.trim().replace(/\/+$/,"")||DEFAULT_PROXY;
+ AUTO.key=k;AUTO.proxy=px;AUTO.int=+$("aint").value||15;AUTO.sound=$("asnd").checked;
  clearInterval(AUTO.timer);AUTO.ids=null;AUTO.prev=null;aSave();
  aStatus("Підключення…",false);aPoll();AUTO.timer=setInterval(aPoll,AUTO.int*1000);
 }
@@ -595,26 +593,6 @@ function setMode(m){
  if(m==="manual"){manualLayers().forEach(l=>{if(!state.map.hasLayer(l))l.addTo(state.map);});state.running=state.wasRunning!==false;ui(true);}
  if(m==="shared")shShow();
  aSave();
-}
-
-/* ---------- Google Maps (за ключем користувача) ---------- */
-function loadScript(url,ok,bad){const sc=document.createElement("script");sc.src=url;sc.onload=ok;sc.onerror=bad;document.head.appendChild(sc);}
-function gStatus(m,bad){const e=$("gstat");e.textContent=m;e.style.color=bad?"#ff5a5a":"";}
-function gConnect(){
- const k=$("gkey").value.trim();if(!k){toast("Вставте ключ Google Maps");return;}
- try{localStorage.setItem("etaMapGKey",k);}catch(e){}
- if(state.google){gStatus("Google вже підключено. Щоб змінити ключ, оновіть сторінку.",false);return;}
- gStatus("Завантаження Google Maps…",false);
- window.gm_authFailure=()=>gStatus("Google відхилив ключ: перевірте, що ввімкнено Maps JavaScript API, білінг і обмеження за адресою сайту.",true);
- window.__gmReady=()=>{
-  const urls=["https://unpkg.com/leaflet.gridlayer.googlemutant@0.14.1/dist/Leaflet.GoogleMutant.js","https://cdn.jsdelivr.net/npm/leaflet.gridlayer.googlemutant@0.14.1/dist/Leaflet.GoogleMutant.js"];
-  let i=0;const next=()=>{if(i>=urls.length){gStatus("Не вдалося завантажити модуль GoogleMutant.",true);return;}
-   loadScript(urls[i++],()=>{try{
-     [["Google · Схема","roadmap"],["Google · Супутник","satellite"],["Google · Гібрид","hybrid"],["Google · Рельєф","terrain"]].forEach(a=>state.lc.addBaseLayer(L.gridLayer.googleMutant({type:a[1],maxZoom:20}),a[0]));
-     state.google=true;gStatus("Google підключено: оберіть шар «Google · …» у перемикачі карти (праворуч угорі).",false);
-    }catch(e){gStatus("Помилка ініціалізації Google: "+e.message,true);}},next);};
-  next();};
- loadScript("https://maps.googleapis.com/maps/api/js?key="+encodeURIComponent(k)+"&callback=__gmReady&loading=async",function(){},function(){gStatus("Не вдалося завантажити Google Maps (мережа або блокування).",true);});
 }
 
 /* ---------- спільна карта (Firebase Realtime Database) ---------- */
@@ -856,12 +834,16 @@ function init(){
  state.oblast=L.latLngBounds([49.95,24.55],[52.0,27.95]);
  const mk=(url,o)=>L.tileLayer(url,Object.assign({maxZoom:18},o||{}));
  const layers={
-  "Темна · як на Ukraine Alarm":mk("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{subdomains:"abcd",attribution:"© OpenStreetMap © CARTO"}),
-  "Світла · як на Ukraine Alarm":mk("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",{subdomains:"abcd",attribution:"© OpenStreetMap © CARTO"}),
+  "Темна (Esri)":mk("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",{maxNativeZoom:16,attribution:"Tiles © Esri"}),
+  "Світла (Esri)":mk("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",{maxNativeZoom:16,attribution:"Tiles © Esri"}),
   "Схема (Esri)":mk("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",{attribution:"Tiles © Esri"}),
   "Супутник (Esri)":mk("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{attribution:"Tiles © Esri"}),
   "OpenStreetMap":mk("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OpenStreetMap"}),
-  "Рельєф (OpenTopo)":mk("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",{subdomains:"abc",maxZoom:17,attribution:"© OpenTopoMap"})};
+  "Рельєф (OpenTopo)":mk("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",{subdomains:"abc",maxZoom:17,attribution:"© OpenTopoMap"}),
+  "Топо (Esri)":mk("https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",{attribution:"Tiles © Esri"}),
+  "National Geographic (Esri)":mk("https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}",{maxNativeZoom:16,attribution:"Tiles © Esri, National Geographic"}),
+  "Велосипедна (CyclOSM)":mk("https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png",{subdomains:"abc",attribution:"© CyclOSM © OpenStreetMap"}),
+  "Гуманітарна (OSM HOT)":mk("https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",{subdomains:"abc",attribution:"© OpenStreetMap, HOT"})};
  const order=Object.keys(layers);let cur=0,errs=0;
  function use(i){map.eachLayer(l=>{if(l instanceof L.TileLayer)map.removeLayer(l);});cur=i;errs=0;layers[order[i]].addTo(map);}
  order.forEach((n,i)=>layers[n].on("tileerror",()=>{if(i!==cur)return;errs++;
@@ -904,8 +886,8 @@ function init(){
  $("mrot").onchange=e=>{cfg.rotate=e.target.checked;ui(true);save();};
  $("mrad").onchange=e=>{cfg.showRadius=e.target.checked;applyRadiusVisibility();save();};
 
- $("gconn").onclick=gConnect;
- try{const gk=localStorage.getItem("etaMapGKey");if(gk)$("gkey").value=gk;}catch(e){}
+ 
+ 
  $("mManual").onclick=()=>setMode("manual");$("mAuto").onclick=()=>setMode("auto");$("mShared").onclick=()=>setMode("shared");
  $("shT").onclick=()=>setPick({type:"sh",kind:"t"},"Клікніть на карті — де поставити ціль");
  $("shD").onclick=()=>setPick({type:"sh",kind:"d"},"Клікніть на карті — де поставити об'єкт");
@@ -917,8 +899,8 @@ function init(){
  $("asnd").onchange=()=>{AUTO.sound=$("asnd").checked;aSave();};
  $("aint").onchange=()=>{AUTO.int=+$("aint").value;aSave();if(AUTO.timer)aStart();};
  try{const sa=JSON.parse(localStorage.getItem("etaMapAuto")||"null");
-  if(sa){if(sa.key)$("akey").value=sa.key;if(sa.int)$("aint").value=String(sa.int);$("asnd").checked=sa.sound!==false;AUTO.sound=sa.sound!==false;
-   if(sa.mode==="auto"){setMode("auto");if(sa.key)aStart();}else if(sa.mode==="shared")setMode("shared");}}catch(e){}
+  if(sa){if(sa.key)$("akey").value=sa.key;if(sa.proxy)$("aproxy").value=sa.proxy;if(sa.int)$("aint").value=String(sa.int);$("asnd").checked=sa.sound!==false;AUTO.sound=sa.sound!==false;
+   if(sa.mode==="auto"){setMode("auto");aStart();}else if(sa.mode==="shared")setMode("shared");}}catch(e){}
 
  document.body.dataset.sheet=document.body.dataset.sheet||"mid";
  (function(){const g=$("grab"),lv=["min","mid","max"];let y0=null,moved=false;
