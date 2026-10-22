@@ -166,6 +166,19 @@ details>:last-child{margin-bottom:14px}
 .role{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12.5px;font-weight:600;color:var(--g);background:rgba(75,229,138,.14);white-space:nowrap}
 .nmv{flex:1;min-width:0;padding-left:6px;font-weight:600;overflow-wrap:anywhere}
 
+/* ----- пошук по карті ----- */
+.srch{width:min(300px,calc(100vw - 84px));margin-left:12px!important;margin-top:12px!important}
+.srch form{display:flex;gap:6px}
+.srch input{flex:1;min-width:0;background:rgba(13,23,19,.96);border-color:var(--line2)}
+.srch button{min-height:40px;padding:8px 12px;background:rgba(13,23,19,.96)}
+.srch .res{margin-top:6px;max-height:min(46vh,320px);overflow-y:auto;background:rgba(13,23,19,.97);border:1px solid var(--line2);border-radius:12px;display:none}
+.srch .res.on{display:block}
+.srch .res div{padding:9px 12px;font-size:13.5px;line-height:1.35;cursor:pointer;border-bottom:1px solid var(--line);color:var(--t)}
+.srch .res div:last-child{border-bottom:0}
+.srch .res div:hover,.srch .res div:focus-visible{background:#12221a}
+.srch .res small{display:block;color:var(--mut);font-size:12px}
+.srch .res .msg{cursor:default;color:var(--mut)}
+.spin{width:18px;height:18px;border-radius:50%;background:var(--o);border:3px solid #fff;box-shadow:0 0 0 6px rgba(255,180,58,.3)}
 /* ----- адаптивність ----- */
 @media (min-width:1500px){#side{width:440px}}
 @media (max-width:1099px){#side{width:clamp(300px,40vw,360px)}}
@@ -857,6 +870,56 @@ function init(){
  loadBorder();
  ["Рівне","Дубно","Острог","Здолбунів","Корець","Костопіль","Березне","Сарни","Рокитне","Дубровиця","Володимирець","Зарічне","Радивилів","Млинів"].forEach(n=>{const c=CITIES[n];
   L.marker(c,{interactive:false,icon:L.divIcon({className:"",html:`<div style="color:#bfe9cb;font:11px Consolas;text-shadow:0 0 3px #000,0 0 3px #000;white-space:nowrap;transform:translate(6px,-6px)"><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#3dff7a;margin-right:4px"></span>${n}</div>`,iconSize:[0,0]})}).addTo(map);});
+
+ // пошук за містами і селами (Nominatim)
+ (function(){
+  const ctl=L.control({position:"topleft"});
+  let pin=null;
+  ctl.onAdd=function(){
+   const d=L.DomUtil.create("div","srch leaflet-control");
+   d.innerHTML='<form autocomplete="off"><input type="text" id="srq" placeholder="Пошук міста чи села" aria-label="Пошук міста чи села" enterkeyhint="search"><button type="submit" class="o" aria-label="Шукати"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button></form><div class="res" id="srres"></div>';
+   L.DomEvent.disableClickPropagation(d);L.DomEvent.disableScrollPropagation(d);
+   return d;};
+  ctl.addTo(map);
+  const q=$("srq"),res=$("srres");
+  const kind={city:"місто",town:"місто",village:"село",hamlet:"хутір",suburb:"район",municipality:"громада",county:"район",state:"область",borough:"район",neighbourhood:"мікрорайон",isolated_dwelling:"хутір"};
+  function go(r){
+   res.classList.remove("on");
+   const lat=+r.lat,lng=+r.lon;
+   if(pin)map.removeLayer(pin);
+   const nm=r.name||r.display_name.split(",")[0];
+   pin=L.marker([lat,lng],{icon:L.divIcon({className:"",html:'<div class="spin"></div>',iconSize:[18,18],iconAnchor:[9,9]})}).addTo(map);
+   pin.bindTooltip(esc(nm),{permanent:true,direction:"top",offset:[0,-10],className:"tt"});
+   pin.on("click",()=>{map.removeLayer(pin);pin=null;});
+   if(r.boundingbox){const b=r.boundingbox.map(Number);map.fitBounds([[b[0],b[2]],[b[1],b[3]]],{maxZoom:13,padding:[40,40]});}
+   else map.setView([lat,lng],12);
+  }
+  function show(list){
+   res.innerHTML="";res.classList.add("on");
+   if(!list.length){res.innerHTML='<div class="msg">Нічого не знайдено</div>';return;}
+   list.forEach(r=>{
+    const a=r.address||{},nm=r.name||r.display_name.split(",")[0];
+    const place=[kind[r.addresstype]||"",a.county||a.municipality||"",a.state||""].filter(Boolean).join(" · ");
+    const d=document.createElement("div");d.tabIndex=0;
+    d.innerHTML=esc(nm)+'<small>'+esc(place)+'</small>';
+    d.onclick=()=>go(r);d.onkeydown=e=>{if(e.key==="Enter")go(r);};
+    res.appendChild(d);});
+  }
+  let busy=false;
+  q.form.onsubmit=async e=>{
+   e.preventDefault();const v=q.value.trim();if(v.length<2||busy)return;
+   busy=true;res.classList.add("on");res.innerHTML='<div class="msg">Пошук…</div>';
+   try{
+    const u="https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=8&countrycodes=ua&accept-language=uk&viewbox=24.55,52.0,27.95,49.95&q="+encodeURIComponent(v);
+    const r=await fetch(u);if(!r.ok)throw 0;
+    let list=await r.json();
+    const ok=x=>/^(city|town|village|hamlet|suburb|municipality|county|borough|neighbourhood|isolated_dwelling|state)$/.test(x.addresstype||"")||x.category==="place"||x.category==="boundary";
+    const f=list.filter(ok);if(f.length)list=f;
+    show(list);
+   }catch(x){res.innerHTML='<div class="msg">Не вдалося виконати пошук. Спробуйте пізніше.</div>';}
+   busy=false;};
+  map.on("click",()=>res.classList.remove("on"));
+ })();
 
  // список міст
  Object.keys(CITIES).forEach(n=>{const o=document.createElement("option");o.value=n;o.textContent=n;$("city").appendChild(o);});
