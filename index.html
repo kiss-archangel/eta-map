@@ -690,9 +690,10 @@ function shDelTarget(t){if(!confirm("Видалити «"+t.name+"»?"))return;S
 function shDelDest(d){if(!confirm("Видалити «"+d.name+"»?"))return;SH.data.dests=SH.data.dests.filter(x=>x!==d);SH.data.targets.forEach(t=>{if(t.destId===d.id){shRebase(t);t.destId=null;t.moving=false;}});shTouch();shRebuild();shRenderList(true);}
 function shMapClick(p,kind){
  if(!shIsAdmin())return;const D=SH.data,n=D.uid++;
- if(kind==="d"){D.dests.push({id:"d"+n,name:"Об'єкт "+n,lat:p.lat,lng:p.lng,radius:5});}
- else{let best=null,bd=Infinity;D.dests.forEach(d=>{const x=dist(p,{lat:d.lat,lng:d.lng});if(x<bd){bd=x;best=d;}});
-  D.targets.push({id:"t"+n,name:"Ціль "+n,speed:180,origin:{lat:p.lat,lng:p.lng},start:{lat:p.lat,lng:p.lng},t0:shNow(),moving:false,destId:best?best.id:null,
+ if(kind==="d"){const id="d"+n;D.dests.push({id:id,name:"Об'єкт "+n,lat:p.lat,lng:p.lng,radius:5});
+  const now=shNow();D.targets.forEach(t=>{if(t.destId==null){t.destId=id;t.start={lat:t.start.lat,lng:t.start.lng};t.t0=now;}});}
+ else{
+  D.targets.push({id:"t"+n,name:"Ціль "+n,speed:180,origin:{lat:p.lat,lng:p.lng},start:{lat:p.lat,lng:p.lng},t0:shNow(),moving:false,destId:null,
    color:PAL[n%PAL.length],type:DEFTYPES[n%DEFTYPES.length],radius:5});}
  shTouch();shRebuild();shRenderList(true);
 }
@@ -931,7 +932,7 @@ function init(){
  if(saved&&Array.isArray(saved.dests)&&Array.isArray(saved.targets)){
   state.ptn=saved.ptn||0;state.col=saved.col||0;state.uid=saved.uid||1;
   saved.dests.forEach(d=>addDest({lat:d.lat,lng:d.lng},d.name,d.id));
-  saved.targets.forEach(t=>addTarget(t.start,t.name,t.speed,destById(t.destId)?t.destId:nearestDest(t.start),t.color,t.type,t.radius));
+  saved.targets.forEach(t=>addTarget(t.start,t.name,t.speed,destById(t.destId)?t.destId:null,t.color,t.type,t.radius));
  } else loadDefaults();
  renderPanel();ui(true);save();
  const menu=$("iconmenu");
@@ -976,8 +977,8 @@ function init(){
   clearPick();ui(true);save();});
 
  function label(city){return "Точка "+(++state.ptn)+(city?" · "+city:"");}
- function createTargetAt(p,city){const t=addTarget(p,label(city),300,nearestDest(p));renderPanel();ui(true);save();return t;}
- function createDestAt(p,city){const d=addDest(p,label(city));state.targets.forEach(t=>{if(t.destId==null)t.destId=d.id;});renderPanel();ui(true);save();return d;}
+ function createTargetAt(p,city){const t=addTarget(p,label(city),300,null);renderPanel();ui(true);save();return t;}
+ function createDestAt(p,city){const d=addDest(p,label(city));state.targets.forEach(t=>{if(t.destId==null){t.destId=d.id;t.reached=false;}});renderPanel();ui(true);save();return d;}
  function addFlow(kind){const c=$("city").value;
   if(c){const q=CITIES[c];const p={lat:q[0],lng:q[1]};kind==="t"?createTargetAt(p,c):createDestAt(p,c);map.panTo(q);}
   else setPick({type:kind==="t"?"add-t":"add-d"},"Клікніть на карті — де поставити "+(kind==="t"?"ціль":"об'єкт"));}
