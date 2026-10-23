@@ -385,6 +385,22 @@ function buildMenu(){
  $("msize").value=cfg.size;$("msv").textContent=cfg.size;$("mrot").checked=cfg.rotate;$("mrad").checked=cfg.showRadius;
 }
 
+/* ---------- плавне перетягування: лінії рухаються разом з маркером ---------- */
+let dragRaf=0;
+function schedDrag(){if(dragRaf)return;dragRaf=requestAnimationFrame(()=>{dragRaf=0;dragLinks();});}
+function dragLinks(){
+ state.targets.forEach(t=>{
+  t.rc.setLatLng(ll(t.cur));
+  const dest=destById(t.destId);if(!dest)return;
+  const D=dest.marker.getLatLng(),Dp={lat:D.lat,lng:D.lng};
+  t.line.setLatLngs([ll(t.cur),ll(Dp)]);
+  t.arrow.setLatLng([(t.cur.lat+Dp.lat)/2,(t.cur.lng+Dp.lng)/2]);
+  const ae=t.arrow.getElement();
+  if(ae&&ae.firstChild){const p1=state.map.latLngToLayerPoint(ll(t.cur)),p2=state.map.latLngToLayerPoint(ll(Dp));
+   ae.firstChild.style.transform="rotate("+(Math.atan2(p2.y-p1.y,p2.x-p1.x)*180/Math.PI)+"deg)";}
+  const me=t.marker.getElement();if(me){const rot=me.querySelector(".rot");if(rot)rot.style.transform=cfg.rotate?"rotate("+bearing(t.cur,Dp).toFixed(1)+"deg)":"none";}
+ });
+}
 /* ---------- об'єкти ---------- */
 function nearestDest(p){let best=null,bd=Infinity;state.dests.forEach(d=>{const q=d.marker.getLatLng();const x=dist(p,{lat:q.lat,lng:q.lng});if(x<bd){bd=x;best=d;}});return best?best.id:null;}
 const destById=id=>state.dests.find(d=>d.id===id)||null;
@@ -395,8 +411,8 @@ function addDest(p,name,id){
  d.circle=L.circle(ll(p),{radius:5000,color:"#ff5a5a",weight:1,fillColor:"#ff5a5a",fillOpacity:.08}).addTo(state.map);
  d.marker.bindTooltip(esc(name),{permanent:true,direction:"top",offset:[0,-12],className:"tt"});
  d.marker.bindPopup(()=>popupFor(d.name,()=>removeDest(d)));
- d.marker.on("drag",()=>{d.circle.setLatLng(d.marker.getLatLng());ui(true);});
- d.marker.on("dragend",()=>{save();});
+ d.marker.on("drag",()=>{d.circle.setLatLng(d.marker.getLatLng());schedDrag();});
+ d.marker.on("dragend",()=>{dragLinks();ui(true);save();});
  state.dests.push(d);return d;
 }
 function removeDest(d){
@@ -416,8 +432,8 @@ function addTarget(p,name,speed,destId,color,type,radius){
  t.marker.bindPopup(()=>popupFor(t.name,()=>removeTarget(t)));
  t.line=L.polyline([],{color:t.color,weight:2,opacity:.9,dashArray:"6 6"}).addTo(state.map);
  t.arrow=L.marker(ll(p),{interactive:false,icon:L.divIcon({className:"",html:`<div class="arr" style="--c:${t.color}">▶</div>`,iconSize:[16,16],iconAnchor:[8,8]})}).addTo(state.map);
- t.marker.on("drag",()=>{const q=t.marker.getLatLng();t.cur={lat:q.lat,lng:q.lng};t.start={lat:q.lat,lng:q.lng};t.reached=false;ui(true);});
- t.marker.on("dragend",()=>save());
+ t.marker.on("drag",()=>{const q=t.marker.getLatLng();t.cur={lat:q.lat,lng:q.lng};t.start={lat:q.lat,lng:q.lng};t.reached=false;schedDrag();});
+ t.marker.on("dragend",()=>{dragLinks();ui(true);save();});
  state.targets.push(t);return t;
 }
 function removeTarget(t){
@@ -684,11 +700,11 @@ function shRebuild(){
   marker.bindTooltip(esc(d.name),{permanent:true,direction:"top",offset:[0,-12],className:"tt"});
   if(adm){
    marker.bindPopup(()=>popupFor(d.name,()=>shDelDest(d)));
-   marker.on("dragstart",()=>{SH.oldDest={lat:d.lat,lng:d.lng};});
-   marker.on("drag",()=>circle.setLatLng(marker.getLatLng()));
+   marker.on("dragstart",()=>{SH.oldDest={lat:d.lat,lng:d.lng};SH.drag={id:d.id,p:{lat:d.lat,lng:d.lng}};});
+   marker.on("drag",()=>{const q=marker.getLatLng();circle.setLatLng(q);if(SH.drag)SH.drag.p={lat:q.lat,lng:q.lng};shSchedTick();});
    marker.on("dragend",()=>{const p=marker.getLatLng(),old=SH.oldDest||{lat:d.lat,lng:d.lng};const now=shNow();
     D.targets.forEach(t=>{if(t.destId===d.id&&t.moving){const q=shPos(t,now,old);t.start={lat:q.lat,lng:q.lng};t.t0=now;}});
-    d.lat=p.lat;d.lng=p.lng;shTouch();});
+    d.lat=p.lat;d.lng=p.lng;SH.drag=null;shTouch();shTick(true);});
   }
   circle.setRadius(d.radius*1000);
   SH.lay.d.set(d.id,{marker:marker,circle:circle});
@@ -703,7 +719,8 @@ function shRebuild(){
   if(adm){
    marker.bindPopup(()=>popupFor(t.name,()=>shDelTarget(t)));
    marker.on("dragstart",()=>{en.drag=true;});
-   marker.on("dragend",()=>{en.drag=false;const p=marker.getLatLng();t.origin={lat:p.lat,lng:p.lng};t.start={lat:p.lat,lng:p.lng};t.t0=shNow();shTouch();});
+   marker.on("drag",()=>shSchedTick());
+   marker.on("dragend",()=>{en.drag=false;const p=marker.getLatLng();t.origin={lat:p.lat,lng:p.lng};t.start={lat:p.lat,lng:p.lng};t.t0=shNow();shTouch();shTick(true);});
   }
   SH.lay.t.set(t.id,en);
  });
@@ -792,17 +809,19 @@ function shSyncInputs(all){
   set(E.nm,t.name);set(E.sr,Math.min(3000,t.speed));set(E.sn,t.speed);set(E.rr,Math.min(50,t.radius));set(E.rn,t.radius);set(E.ds,t.destId||"");set(E.ty,t.type);});
  SH.data.dests.forEach(o=>{const E=SH.els["d:"+o.id];if(!E)return;set(E.nm,o.name);set(E.rr,Math.min(50,o.radius));set(E.rn,o.radius);});
 }
+let shRaf=0;
+function shSchedTick(){if(shRaf)return;shRaf=requestAnimationFrame(()=>{shRaf=0;shTick(true);});}
 function shTick(force){
  if(!SH.layersOn)return;
  const t0=performance.now();if(!force&&t0-SH.lastTick<200)return;SH.lastTick=t0;
  const now=shNow(),lines=[];
  SH.data.targets.forEach(t=>{
   const en=SH.lay.t.get(t.id);if(!en)return;
-  const d=SH.data.dests.find(x=>x.id===t.destId),E=SH.els[t.id],pos=shPos(t,now);
+  const d=SH.data.dests.find(x=>x.id===t.destId),E=SH.els[t.id],pos=en.drag?(q=>({lat:q.lat,lng:q.lng}))(en.marker.getLatLng()):shPos(t,now);
   if(!en.drag)en.marker.setLatLng(ll(pos));en.rc.setLatLng(ll(pos));
   if(E&&E.info)E.info.textContent="Швидкість "+t.speed+" км/г · радіус "+t.radius+" км"+(d?" · летить до: "+d.name:"");
   if(!d){en.line.setLatLngs([]);if(E){E.di.textContent="—";E.az.textContent="—";E.et.textContent="—";E.ck.textContent="—";E.rz.textContent="—";E.pb.style.width="0";E.card.classList.remove("done");}return;}
-  const D={lat:d.lat,lng:d.lng},dm=dist(pos,D),sec=dm/(t.speed/3.6),done=dm<300;
+  const D=(SH.drag&&SH.drag.id===d.id)?SH.drag.p:{lat:d.lat,lng:d.lng},dm=dist(pos,D),sec=dm/(t.speed/3.6),done=dm<300;
   en.line.setLatLngs([ll(pos),ll(D)]);
   const mel=en.marker.getElement();if(mel){const rot=mel.querySelector(".rot");if(rot)rot.style.transform=cfg.rotate?"rotate("+bearing(pos,D).toFixed(1)+"deg)":"none";}
   const edge=dm-t.radius*1000;
