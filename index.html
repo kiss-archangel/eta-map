@@ -276,7 +276,8 @@ details>:last-child{margin-bottom:14px}
 </div>
 <div id="haz" style="display:none">
  <h3>Небезпечні об'єкти</h3>
- <div class="card hzform" style="--c:var(--o)">
+ <div id="hzNote" class="note" style="display:none"></div>
+ <div id="hzAdm" class="card hzform" style="--c:var(--o)">
   <div class="row"><input type="text" id="hzName" placeholder="Назва, напр. Епіцентр" aria-label="Назва" style="flex:1"></div>
   <div class="row"><input type="text" id="hzAddr" placeholder="Адреса, напр. вулиця Небожинського, 27" aria-label="Адреса" style="flex:1"></div>
   <div class="row"><input type="text" id="hzCity" placeholder="Населений пункт (необов'язково)" aria-label="Населений пункт" style="flex:1"></div>
@@ -286,7 +287,7 @@ details>:last-child{margin-bottom:14px}
   <div id="hzRes"></div>
  </div>
  <div id="hzList"></div>
- <div class="note">Адреса шукається через OpenStreetMap. Якщо адресу не знайдено, вкажіть координати або натисніть «На карті». Список зберігається лише у вашому браузері.</div>
+ <div class="note">Список спільний: його бачать усі відвідувачі, додавати й видаляти може лише адміністратор. Адреса шукається через OpenStreetMap; якщо її не знайдено, вкажіть координати або натисніть «На карті».</div>
 </div>
 <div id="auto">
  <div id="astat" class="note"></div>
@@ -607,7 +608,7 @@ function setMode(m){
 
 /* ---------- спільна карта (Firebase Realtime Database) ---------- */
 const SH={fb:null,db:null,auth:null,user:null,offset:0,localRev:0,cid:Math.random().toString(36).slice(2,10),ready:false,loading:false,connected:false,
- data:{rev:0,uid:1,targets:[],dests:[]},lay:{t:new Map(),d:new Map()},els:{},layersOn:false,listSig:"",pushT:null,lastTick:0,lastRemote:0,oldDest:null};
+ data:{rev:0,uid:1,targets:[],dests:[],haz:[]},lay:{t:new Map(),d:new Map()},els:{},layersOn:false,listSig:"",pushT:null,lastTick:0,lastRemote:0,oldDest:null};
 const shNow=()=>Date.now()+SH.offset;
 const shIsAdmin=()=>!!SH.user;
 function shStatus(msg,bad){const el=$("shstat");if(!el)return;
@@ -622,7 +623,8 @@ function shSanitize(v){
  const targets=arr(v.targets).slice(0,50).map(t=>({id:String(t.id),name:nm(t.name,"Ціль"),speed:num(t.speed,1,10000,200),origin:pt(t.origin),start:pt(t.start),
   t0:num(t.t0,0,4e12,0),moving:!!t.moving,destId:t.destId==null?null:String(t.destId),color:/^#[0-9a-f]{6}$/i.test(t.color||"")?t.color:PAL[0],
   type:ICONS[t.type]?t.type:"unknown",radius:num(t.radius,0.5,200,5)}));
- return {rev:num(v.rev,0,4e12,0),uid:num(v.uid,1,1e9,1),dests:dests,targets:targets};
+ const haz=arr(v.haz).slice(0,100).map(h=>Object.assign({id:String(h.id),name:nm(h.name,"Небезпечний об'єкт"),address:String(h.address==null?"":h.address).slice(0,160)},pt(h)));
+ return {rev:num(v.rev,0,4e12,0),uid:num(v.uid,1,1e9,1),dests:dests,targets:targets,haz:haz};
 }
 function shPos(t,now,dOv){
  if(!t.moving)return t.start;
@@ -647,7 +649,8 @@ function shOnRemote(v){
  const reuse=(oa,na)=>na.map(n=>{const o=oa.find(x=>x.id===n.id);return o?Object.assign(o,n):n;});
  d.targets=reuse(SH.data.targets,d.targets);d.dests=reuse(SH.data.dests,d.dests);
  SH.data=d;SH.localRev=Math.max(SH.localRev,d.rev);SH.lastRemote=shNow();
- shRebuild();shStatus();
+
+ shRebuild();shStatus();if(state.hzRender)state.hzRender();
 }
 async function shLoadSdk(){
  if(window.__shLoadSdk)return window.__shLoadSdk();
@@ -663,7 +666,7 @@ async function shInit(){
  try{
   const fb=await shLoadSdk();SH.fb=fb;
   const app=fb.app.initializeApp(c);SH.auth=fb.auth.getAuth(app);SH.db=fb.db.getDatabase(app);
-  fb.auth.onAuthStateChanged(SH.auth,u=>{SH.user=u||null;shRenderAuth();shRebuild();shRenderList(true);shStatus();});
+  fb.auth.onAuthStateChanged(SH.auth,u=>{SH.user=u||null;shRenderAuth();shRebuild();shRenderList(true);shStatus();if(state.hzRender)state.hzRender();});
   fb.db.onValue(fb.db.ref(SH.db,".info/serverTimeOffset"),x=>{SH.offset=+x.val()||0;});
   fb.db.onValue(fb.db.ref(SH.db,".info/connected"),x=>{SH.connected=!!x.val();shStatus();});
   fb.db.onValue(fb.db.ref(SH.db,"eta/state"),x=>shOnRemote(x.val()),e=>shStatus("Помилка читання: "+(e&&e.message),true));
@@ -942,43 +945,57 @@ function init(){
   map.on("click",()=>res.classList.remove("on"));
  })();
 
- // небезпечні об'єкти
+ // небезпечні об'єкти (спільні, зберігаються в Firebase разом з цілями)
  (function(){
-  const KEY="etaHazV1";let list=[];
-  try{const a=JSON.parse(localStorage.getItem(KEY)||"[]");if(Array.isArray(a))list=a.filter(x=>x&&isFinite(x.lat)&&isFinite(x.lng)).map(x=>({id:String(x.id),name:String(x.name||"Об'єкт"),address:String(x.address||""),lat:+x.lat,lng:+x.lng}));}catch(e){}
-  const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(list));}catch(e){}};
-  const layer=L.layerGroup().addTo(map),mk=new Map();
+  const list=()=>SH.data.haz;
+  const layer=L.layerGroup().addTo(map);let sig="",lastAdm=null;
   const ico=L.divIcon({className:"",html:'<div class="hzm"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 3 2 20h20L12 3z" fill="#ff5d55" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 10v4M12 17v.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div>',iconSize:[26,26],iconAnchor:[13,22],popupAnchor:[0,-20]});
+  const mk=new Map();
   function popup(h){
    const d=document.createElement("div");d.className="pop";
    d.innerHTML='<b>'+esc(h.name)+'</b><br>'+(h.address?esc(h.address)+'<br>':'')+'<span style="color:#8aa497">'+h.lat.toFixed(5)+', '+h.lng.toFixed(5)+'</span><br>';
-   const b=document.createElement("button");b.className="x";b.textContent="✕ Видалити";
-   b.onclick=()=>{map.closePopup();del(h);};d.appendChild(b);return d;
+   if(shIsAdmin()){const b=document.createElement("button");b.className="x";b.textContent="✕ Видалити";
+    b.onclick=()=>{map.closePopup();del(h.id);};d.appendChild(b);}
+   return d;
   }
-  function draw(h){
-   const m=L.marker([h.lat,h.lng],{icon:ico,title:h.name}).addTo(layer);
-   m.bindPopup(()=>popup(h));m.bindTooltip(esc(h.name),{direction:"top",offset:[0,-20],className:"tt"});
-   mk.set(h.id,m);
-  }
-  function del(h){
-   list=list.filter(x=>x!==h);const m=mk.get(h.id);if(m){layer.removeLayer(m);mk.delete(h.id);}save();render();
-  }
-  function render(){
-   const box=$("hzList");box.innerHTML="";
-   if(!list.length){box.innerHTML='<div class="note">Небезпечних об\'єктів немає.</div>';return;}
-   list.forEach(h=>{
-    const d=document.createElement("div");d.className="ar";
-    d.innerHTML='<span style="min-width:0"><b>'+esc(h.name)+'</b><br><small>'+esc(h.address||"без адреси")+'</small></span><span style="white-space:nowrap"><button class="o" data-go aria-label="Показати на карті"><svg class="i"><use href="#i-target"/></svg></button> <button class="x" data-del aria-label="Видалити">✕</button></span>';
-   d.querySelector("[data-go]").onclick=()=>{map.setView([h.lat,h.lng],Math.max(map.getZoom(),14));const m=mk.get(h.id);if(m)m.openPopup();};
-   d.querySelector("[data-del]").onclick=()=>{if(confirm("Видалити «"+h.name+"»?"))del(h);};
-   box.appendChild(d);});
+  function del(id){
+   const h=list().find(x=>x.id===id);if(!h||!shIsAdmin())return;
+   if(!confirm("Видалити «"+h.name+"»?"))return;
+   SH.data.haz=list().filter(x=>x.id!==id);shTouch();render();
   }
   function msg(t){const e=$("hzMsg");e.textContent=t||"";e.style.display=t?"":"none";}
+  function render(){
+   const adm=shIsAdmin(),L0=list();
+   const cfgOk=!!(window.FIREBASE_CONFIG&&window.FIREBASE_CONFIG.apiKey&&window.FIREBASE_CONFIG.databaseURL);
+   $("hzAdm").style.display=adm?"":"none";
+   const nt=$("hzNote");
+   if(adm){nt.style.display="none";}
+   else{nt.style.display="";nt.textContent=cfgOk?"Додавати й видаляти об'єкти може лише адміністратор. Увійти можна у вкладці «Авто», розділ «Вхід для адміністратора».":"Спільна карта ще не підключена до бази даних (див. README.md).";}
+   const s2=(adm?"A":"V")+"|"+L0.map(h=>[h.id,h.name,h.address,h.lat,h.lng].join("~")).join("|");
+   if(s2===sig&&lastAdm===adm)return;
+   sig=s2;lastAdm=adm;
+   layer.clearLayers();mk.clear();
+   L0.forEach(h=>{
+    const m=L.marker([h.lat,h.lng],{icon:ico,title:h.name}).addTo(layer);
+    m.bindPopup(()=>popup(h));m.bindTooltip(esc(h.name),{direction:"top",offset:[0,-20],className:"tt"});
+    mk.set(h.id,m);});
+   const box=$("hzList");box.innerHTML="";
+   if(!L0.length){box.innerHTML='<div class="note">Небезпечних об\'єктів немає.</div>';return;}
+   L0.forEach(h=>{
+    const d=document.createElement("div");d.className="ar";
+    d.innerHTML='<span style="min-width:0"><b>'+esc(h.name)+'</b><br><small>'+esc(h.address||"без адреси")+'</small></span><span style="white-space:nowrap"><button class="o" data-go aria-label="Показати на карті"><svg class="i"><use href="#i-target"/></svg></button>'+(adm?' <button class="x" data-del aria-label="Видалити">✕</button>':'')+'</span>';
+    d.querySelector("[data-go]").onclick=()=>{map.setView([h.lat,h.lng],Math.max(map.getZoom(),14));const m=mk.get(h.id);if(m)m.openPopup();};
+    const x=d.querySelector("[data-del]");if(x)x.onclick=()=>del(h.id);
+    box.appendChild(d);});
+  }
+  state.hzRender=render;
   function add(name,addr,lat,lng){
-   const h={id:"h"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),name:name,address:addr,lat:lat,lng:lng};
-   list.push(h);draw(h);save();render();
+   if(!shIsAdmin()){msg("Додавати може лише адміністратор.");return;}
+   const n=SH.data.uid++;
+   SH.data.haz.push({id:"h"+n,name:name.slice(0,60),address:addr.slice(0,160),lat:lat,lng:lng});
+   shTouch();render();
    $("hzName").value="";$("hzAddr").value="";$("hzCity").value="";$("hzCo").value="";$("hzRes").innerHTML="";msg("");
-   map.setView([lat,lng],Math.max(map.getZoom(),14));mk.get(h.id).openPopup();
+   map.setView([lat,lng],Math.max(map.getZoom(),14));const m=mk.get("h"+n);if(m)m.openPopup();
   }
   function parseCo(v){
    const m=v.replace(/,/g," ").trim().split(/\s+/).map(Number);
@@ -1016,7 +1033,8 @@ function init(){
    setPick({type:"haz"},"Клікніть на карті — де розташований об'єкт «"+name+"»");
   };
   state.hzAdd=(p)=>{const d=state.hzDraft;state.hzDraft=null;if(d)add(d.name,d.addr,p.lat,p.lng);};
-  list.forEach(draw);render();
+  render();
+  shInit();
  })();
 
  // список міст
@@ -1042,7 +1060,7 @@ function init(){
 
  
  
- $("mHaz").onclick=()=>showPanel("haz");$("mAuto").onclick=()=>setMode("auto");$("mManual").onclick=()=>setMode("manual");
+ $("mHaz").onclick=()=>{showPanel("haz");shInit();if(state.hzRender)state.hzRender();};$("mAuto").onclick=()=>setMode("auto");$("mManual").onclick=()=>setMode("manual");
  $("shT").onclick=()=>setPick({type:"sh",kind:"t"},"Клікніть на карті — де поставити ціль");
  $("shD").onclick=()=>setPick({type:"sh",kind:"d"},"Клікніть на карті — де поставити об'єкт");
  $("shGo").onclick=()=>{SH.data.targets.forEach(t=>{if(!t.moving){t.moving=true;t.t0=shNow();}});shTouch();shTick(true);};
