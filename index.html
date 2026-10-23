@@ -179,6 +179,9 @@ details>:last-child{margin-bottom:14px}
 .srch .res small{display:block;color:var(--mut);font-size:12px}
 .srch .res .msg{cursor:default;color:var(--mut)}
 .spin{width:18px;height:18px;border-radius:50%;background:var(--o);border:3px solid #fff;box-shadow:0 0 0 6px rgba(255,180,58,.3)}
+.hzm{filter:drop-shadow(0 2px 5px rgba(0,0,0,.6))}
+#haz .hzform .row{margin:4px 0}
+#hzRes .ar{cursor:pointer}
 /* ----- адаптивність ----- */
 @media (min-width:1500px){#side{width:440px}}
 @media (max-width:1099px){#side{width:clamp(300px,40vw,360px)}}
@@ -214,6 +217,7 @@ details>:last-child{margin-bottom:14px}
 <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
 <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
 <symbol id="i-undo" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></symbol>
+<symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4M12 17v.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
 <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
 <symbol id="i-map" viewBox="0 0 24 24"><path d="M9 3 3 5v16l6-2 6 2 6-2V3l-6 2zM9 3v16M15 5v16"/></symbol>
 <symbol id="i-plane" viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></symbol>
@@ -239,7 +243,7 @@ details>:last-child{margin-bottom:14px}
    <svg class="logo" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="20" cy="20" r="16"/><circle cx="20" cy="20" r="9" opacity=".6"/><path d="M20 20 31 9"/><circle cx="20" cy="20" r="2.5" fill="currentColor" stroke="none"/><circle cx="29" cy="27" r="2.4" fill="#ffb43a" stroke="none"/></svg>
    <div><h1>ETA Map</h1><div class="sub">Час підльоту до об'єктів на карті</div></div>
   </header>
-  <div id="modes"><button id="mAuto" class="on"><svg class="i"><use href="#i-radar"/></svg>Авто</button><button id="mManual"><svg class="i"><use href="#i-hand"/></svg>Ручний</button></div>
+  <div id="modes"><button id="mAuto" class="on"><svg class="i"><use href="#i-radar"/></svg>Авто</button><button id="mManual"><svg class="i"><use href="#i-hand"/></svg>Ручний</button><button id="mHaz"><svg class="i"><use href="#i-warn"/></svg>Небезпечні</button></div>
   <div id="sbody">
 <div id="manual" style="display:none">
   <div class="ctl">
@@ -269,6 +273,20 @@ details>:last-child{margin-bottom:14px}
   <div id="dests"></div>
 
   <div class="note">Перетягуйте маркери по карті. Клік по маркеру відкриває вікно з кнопкою «Видалити». Час = відстань по прямій ÷ швидкість, рахується від поточної позиції цілі, тому зміна швидкості під час руху перераховує час одразу. Це геометричний розрахунок, а не реальна оцінка загрози; за оповіщеннями дивіться офіційні джерела.</div>
+</div>
+<div id="haz" style="display:none">
+ <h3>Небезпечні об'єкти</h3>
+ <div class="card hzform" style="--c:var(--o)">
+  <div class="row"><input type="text" id="hzName" placeholder="Назва, напр. Епіцентр" aria-label="Назва" style="flex:1"></div>
+  <div class="row"><input type="text" id="hzAddr" placeholder="Адреса, напр. вулиця Небожинського, 27" aria-label="Адреса" style="flex:1"></div>
+  <div class="row"><input type="text" id="hzCity" placeholder="Населений пункт (необов'язково)" aria-label="Населений пункт" style="flex:1"></div>
+  <div class="row"><input type="text" id="hzCo" placeholder="Координати (необов'язково): 50.6199, 26.2516" aria-label="Координати" style="flex:1"></div>
+  <div class="ctl"><button id="hzAdd"><svg class="i"><use href="#i-plus"/></svg>Додати</button><button id="hzPick" class="o"><svg class="i"><use href="#i-target"/></svg>На карті</button></div>
+  <div id="hzMsg" class="note" style="display:none"></div>
+  <div id="hzRes"></div>
+ </div>
+ <div id="hzList"></div>
+ <div class="note">Адреса шукається через OpenStreetMap. Якщо адресу не знайдено, вкажіть координати або натисніть «На карті». Список зберігається лише у вашому браузері.</div>
 </div>
 <div id="auto">
  <div id="astat" class="note"></div>
@@ -574,11 +592,13 @@ function aStart(){
 }
 function aStop(){clearInterval(AUTO.timer);AUTO.timer=null;}
 function manualLayers(){const a=[];state.targets.forEach(t=>{a.push(t.marker,t.line,t.arrow);if(cfg.showRadius)a.push(t.rc);});state.dests.forEach(d=>a.push(d.marker,d.circle));return a;}
+function showPanel(k){
+ ["auto","manual","haz"].forEach(x=>{$(x).style.display=x===k?"":"none";});
+ $("mAuto").classList.toggle("on",k==="auto");$("mManual").classList.toggle("on",k==="manual");$("mHaz").classList.toggle("on",k==="haz");
+}
 function setMode(m){
- if(m===state.mode)return;
- const prev=state.mode;state.mode=m;
- ["auto","manual"].forEach(k=>{$(k).style.display=k===m?"":"none";});
- $("mAuto").classList.toggle("on",m==="auto");$("mManual").classList.toggle("on",m==="manual");
+ if(m===state.mode){showPanel(m);return;}
+ const prev=state.mode;state.mode=m;showPanel(m);
  if(prev==="manual"){state.wasRunning=state.running;state.running=false;manualLayers().forEach(l=>state.map.removeLayer(l));$("top").style.display="none";}
  if(prev==="auto"){aStop();shHide();placeTop();}
  if(m==="manual"){manualLayers().forEach(l=>{if(!state.map.hasLayer(l))l.addTo(state.map);});state.running=state.wasRunning!==false;ui(true);}
@@ -922,6 +942,83 @@ function init(){
   map.on("click",()=>res.classList.remove("on"));
  })();
 
+ // небезпечні об'єкти
+ (function(){
+  const KEY="etaHazV1";let list=[];
+  try{const a=JSON.parse(localStorage.getItem(KEY)||"[]");if(Array.isArray(a))list=a.filter(x=>x&&isFinite(x.lat)&&isFinite(x.lng)).map(x=>({id:String(x.id),name:String(x.name||"Об'єкт"),address:String(x.address||""),lat:+x.lat,lng:+x.lng}));}catch(e){}
+  const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(list));}catch(e){}};
+  const layer=L.layerGroup().addTo(map),mk=new Map();
+  const ico=L.divIcon({className:"",html:'<div class="hzm"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 3 2 20h20L12 3z" fill="#ff5d55" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 10v4M12 17v.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div>',iconSize:[26,26],iconAnchor:[13,22],popupAnchor:[0,-20]});
+  function popup(h){
+   const d=document.createElement("div");d.className="pop";
+   d.innerHTML='<b>'+esc(h.name)+'</b><br>'+(h.address?esc(h.address)+'<br>':'')+'<span style="color:#8aa497">'+h.lat.toFixed(5)+', '+h.lng.toFixed(5)+'</span><br>';
+   const b=document.createElement("button");b.className="x";b.textContent="✕ Видалити";
+   b.onclick=()=>{map.closePopup();del(h);};d.appendChild(b);return d;
+  }
+  function draw(h){
+   const m=L.marker([h.lat,h.lng],{icon:ico,title:h.name}).addTo(layer);
+   m.bindPopup(()=>popup(h));m.bindTooltip(esc(h.name),{direction:"top",offset:[0,-20],className:"tt"});
+   mk.set(h.id,m);
+  }
+  function del(h){
+   list=list.filter(x=>x!==h);const m=mk.get(h.id);if(m){layer.removeLayer(m);mk.delete(h.id);}save();render();
+  }
+  function render(){
+   const box=$("hzList");box.innerHTML="";
+   if(!list.length){box.innerHTML='<div class="note">Небезпечних об\'єктів немає.</div>';return;}
+   list.forEach(h=>{
+    const d=document.createElement("div");d.className="ar";
+    d.innerHTML='<span style="min-width:0"><b>'+esc(h.name)+'</b><br><small>'+esc(h.address||"без адреси")+'</small></span><span style="white-space:nowrap"><button class="o" data-go aria-label="Показати на карті"><svg class="i"><use href="#i-target"/></svg></button> <button class="x" data-del aria-label="Видалити">✕</button></span>';
+   d.querySelector("[data-go]").onclick=()=>{map.setView([h.lat,h.lng],Math.max(map.getZoom(),14));const m=mk.get(h.id);if(m)m.openPopup();};
+   d.querySelector("[data-del]").onclick=()=>{if(confirm("Видалити «"+h.name+"»?"))del(h);};
+   box.appendChild(d);});
+  }
+  function msg(t){const e=$("hzMsg");e.textContent=t||"";e.style.display=t?"":"none";}
+  function add(name,addr,lat,lng){
+   const h={id:"h"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),name:name,address:addr,lat:lat,lng:lng};
+   list.push(h);draw(h);save();render();
+   $("hzName").value="";$("hzAddr").value="";$("hzCity").value="";$("hzCo").value="";$("hzRes").innerHTML="";msg("");
+   map.setView([lat,lng],Math.max(map.getZoom(),14));mk.get(h.id).openPopup();
+  }
+  function parseCo(v){
+   const m=v.replace(/,/g," ").trim().split(/\s+/).map(Number);
+   if(m.length!==2||m.some(x=>!isFinite(x)))return null;
+   if(Math.abs(m[0])>90||Math.abs(m[1])>180)return null;return {lat:m[0],lng:m[1]};
+  }
+  function need(){const n=$("hzName").value.trim();if(!n){msg("Вкажіть назву.");$("hzName").focus();return null;}return n;}
+  let busy=false;
+  $("hzAdd").onclick=async()=>{
+   const name=need();if(!name||busy)return;
+   const addr=$("hzAddr").value.trim(),city=$("hzCity").value.trim(),coTxt=$("hzCo").value.trim();
+   $("hzRes").innerHTML="";
+   if(coTxt){const c=parseCo(coTxt);if(!c){msg("Координати вказані неправильно. Приклад: 50.6199, 26.2516");return;}add(name,addr,c.lat,c.lng);return;}
+   if(!addr){msg("Вкажіть адресу, координати або натисніть «На карті».");return;}
+   busy=true;msg("Пошук адреси…");
+   try{
+    const q=addr+(city?", "+city:"");
+    const r=await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&countrycodes=ua&accept-language=uk&viewbox=24.55,52.0,27.95,49.95&q="+encodeURIComponent(q));
+    if(!r.ok)throw 0;const a=await r.json();
+    if(!a.length){msg("Адресу не знайдено. Додайте населений пункт, вкажіть координати або натисніть «На карті».");}
+    else if(a.length===1){add(name,addr,+a[0].lat,+a[0].lon);}
+    else{
+     msg("Знайдено кілька збігів. Оберіть потрібний:");
+     a.forEach(x=>{const d=document.createElement("div");d.className="ar";d.style.cursor="pointer";d.tabIndex=0;
+      d.innerHTML='<span>'+esc(x.display_name)+'</span>';
+      const pick=()=>add(name,addr,+x.lat,+x.lon);d.onclick=pick;d.onkeydown=e=>{if(e.key==="Enter")pick();};
+      $("hzRes").appendChild(d);});
+    }
+   }catch(e){msg("Не вдалося виконати пошук. Вкажіть координати або натисніть «На карті».");}
+   busy=false;
+  };
+  $("hzPick").onclick=()=>{
+   const name=need();if(!name)return;msg("");
+   state.hzDraft={name:name,addr:$("hzAddr").value.trim()};
+   setPick({type:"haz"},"Клікніть на карті — де розташований об'єкт «"+name+"»");
+  };
+  state.hzAdd=(p)=>{const d=state.hzDraft;state.hzDraft=null;if(d)add(d.name,d.addr,p.lat,p.lng);};
+  list.forEach(draw);render();
+ })();
+
  // список міст
  Object.keys(CITIES).forEach(n=>{const o=document.createElement("option");o.value=n;o.textContent=n;$("city").appendChild(o);});
 
@@ -945,7 +1042,7 @@ function init(){
 
  
  
- $("mAuto").onclick=()=>setMode("auto");$("mManual").onclick=()=>setMode("manual");
+ $("mHaz").onclick=()=>showPanel("haz");$("mAuto").onclick=()=>setMode("auto");$("mManual").onclick=()=>setMode("manual");
  $("shT").onclick=()=>setPick({type:"sh",kind:"t"},"Клікніть на карті — де поставити ціль");
  $("shD").onclick=()=>setPick({type:"sh",kind:"d"},"Клікніть на карті — де поставити об'єкт");
  $("shGo").onclick=()=>{SH.data.targets.forEach(t=>{if(!t.moving){t.moving=true;t.t0=shNow();}});shTouch();shTick(true);};
@@ -969,18 +1066,21 @@ function init(){
  window.addEventListener("resize",()=>{map.invalidateSize();placeTop();});
  map.on("zoomend",()=>ui(true));
  map.on("click",e=>{const p={lat:e.latlng.lat,lng:e.latlng.lng},k=state.pick;if(!k)return;
-  if(k.type==="sh"){shMapClick(p,k.kind);clearPick();return;}
+  if(k.type==="haz"){clearPick();state.hzAdd(p);return;}
+  if(k.type==="sh"){shMapClick(p,k.kind);clearPick();if(k.kind==="t"&&shIsAdmin())setPick({type:"sh",kind:"d"},"Тепер клікніть на карті — де об'єкт для цієї цілі");return;}
   if(k.type==="move-t"){const t=k.ref;t.start={...p};t.cur={...p};t.reached=false;t.marker.setLatLng(ll(p));}
   else if(k.type==="move-d"){const o=k.ref;o.marker.setLatLng(ll(p));o.circle.setLatLng(ll(p));}
   else if(k.type==="add-t"){createTargetAt(p,"");}
   else if(k.type==="add-d"){createDestAt(p,"");}
-  clearPick();ui(true);save();});
+  clearPick();ui(true);save();
+  if(k.type==="add-t")setPick({type:"add-d"},"Тепер клікніть на карті — де об'єкт для цієї цілі");});
 
  function label(city){return "Точка "+(++state.ptn)+(city?" · "+city:"");}
  function createTargetAt(p,city){const t=addTarget(p,label(city),300,null);renderPanel();ui(true);save();return t;}
  function createDestAt(p,city){const d=addDest(p,label(city));state.targets.forEach(t=>{if(t.destId==null){t.destId=d.id;t.reached=false;}});renderPanel();ui(true);save();return d;}
  function addFlow(kind){const c=$("city").value;
-  if(c){const q=CITIES[c];const p={lat:q[0],lng:q[1]};kind==="t"?createTargetAt(p,c):createDestAt(p,c);map.panTo(q);}
+  if(c){const q=CITIES[c];const p={lat:q[0],lng:q[1]};kind==="t"?createTargetAt(p,c):createDestAt(p,c);map.panTo(q);
+   if(kind==="t")setPick({type:"add-d"},"Тепер клікніть на карті — де об'єкт для цієї цілі");}
   else setPick({type:kind==="t"?"add-t":"add-d"},"Клікніть на карті — де поставити "+(kind==="t"?"ціль":"об'єкт"));}
  $("addT").onclick=()=>addFlow("t");$("addD").onclick=()=>addFlow("d");
  $("start").onclick=()=>{state.running=true;ui(true);};
