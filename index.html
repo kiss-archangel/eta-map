@@ -230,7 +230,11 @@ details>:last-child{margin-bottom:14px}
 <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
 </defs></svg>
 <div id="iconmenu" class="modal"><div class="mbody">
- <div class="mh"><b>Значки цілей</b><button id="mclose" class="o">✕ Закрити</button></div>
+ <div class="mh"><b>Значки й швидкості</b><button id="mclose" class="o">✕ Закрити</button></div>
+ <h3>Швидкість за замовчуванням, км/г</h3>
+ <div id="mspd"></div>
+ <div class="note">Застосовується до нових цілей і коли змінюєте вид цілі. Зберігається в цьому браузері.</div>
+ <h3>Значки</h3>
  <div id="mlist"></div>
  <div class="row"><label>Розмір</label><input type="range" id="msize" min="24" max="72" value="40" style="--c:#3dff7a"><span id="msv">40</span><span>px</span></div>
  <label class="chk"><input type="checkbox" id="mrot" checked> Повертати значок за курсом польоту</label>
@@ -295,7 +299,7 @@ details>:last-child{margin-bottom:14px}
  <div id="shsetup" class="abn part" style="display:none">Цілі на карті ще не підключені до бази даних. Заповніть файл <b>firebase-config.js</b> за інструкцією з README.md.</div>
  <div id="shauth" style="margin-top:10px"></div>
  <div id="shadm" style="display:none">
-  <div class="ctl"><button id="shT"><svg class="i"><use href="#i-plus"/></svg>Ціль</button><button id="shD" class="o"><svg class="i"><use href="#i-plus"/></svg>Об'єкт</button></div>
+  <div class="ctl"><button id="shT"><svg class="i"><use href="#i-plus"/></svg>Ціль</button><button id="shD" class="o"><svg class="i"><use href="#i-plus"/></svg>Об'єкт</button><button id="shSpd" class="o"><svg class="i"><use href="#i-plane"/></svg>Швидкості</button></div>
   <div class="ctl"><button id="shGo"><svg class="i"><use href="#i-play"/></svg>Старт</button><button id="shPause" class="o"><svg class="i"><use href="#i-pause"/></svg>Пауза</button><button id="shReset" class="o"><svg class="i"><use href="#i-undo"/></svg>Спочатку</button><button id="shClear" class="x"><svg class="i"><use href="#i-trash"/></svg>Очистити</button></div>
  </div>
  <h3>Цілі</h3><div id="shlist"></div>
@@ -351,15 +355,19 @@ function save(){try{localStorage.setItem("etaMapV2",JSON.stringify({ptn:state.pt
 
 /* ---------- значки і радіуси ---------- */
 const ICONS={
- uav_delta:{name:"БПЛА (дельта)",svg:'<polygon points="16,2 29,29 16,23 3,29"/>'},
- missile:{name:"Ракета",svg:'<path d="M16 1c3 5 3.5 11 3.5 18v4l5 5v2l-6-3-2.5 3-2.5-3-6 3v-2l5-5v-4c0-7 .5-13 3.5-18z"/><circle cx="16" cy="12" r="2" fill="#000" stroke="none"/>'},
- uav_prop:{name:"БПЛА (гвинтовий)",svg:'<rect x="14.5" y="4" width="3" height="22" rx="1.5"/><rect x="3" y="11" width="26" height="4" rx="1"/><rect x="10" y="24" width="12" height="3" rx="1"/><rect x="9" y="2" width="14" height="1.6" rx=".8"/>'},
- jet:{name:"Реактивний БПЛА",svg:'<path d="M16 1l3 9 11 10v3l-11-4-1 8 4 3v1l-6-1-6 1v-1l4-3-1-8-11 4v-3l11-10z"/>'},
- unknown:{name:"Невідома ціль",svg:'<path d="M16 3l11 24-11-6-11 6z"/>'}
+ jet:{name:"Реактивний БПЛА",svg:'<polygon points="16,1 30,28 16,23 2,28"/><rect x="13.5" y="21" width="5" height="9" rx="1.5"/>'},
+ uav_delta:{name:"БПЛА",svg:'<polygon points="16,2 29,29 16,23 3,29"/>'},
+ missile:{name:"Ракета",svg:'<path d="M16 1c3 5 3.5 11 3.5 18v4l5 5v2l-6-3-2.5 3-2.5-3-6 3v-2l5-5v-4c0-7 .5-13 3.5-18z"/><circle cx="16" cy="12" r="2" fill="#000" stroke="none"/>'}
 };
-const DEFTYPES=["uav_delta","missile","uav_prop","jet"], DEFRAD=5;
+const normType=x=>ICONS[x]?x:(x==="uav_prop"?"uav_delta":"jet");
+const SPD0={jet:600,uav_delta:180,missile:850};
+const SPD=Object.assign({},SPD0);
+try{const q=JSON.parse(localStorage.getItem("etaSpeedsV1")||"null");if(q)Object.keys(SPD0).forEach(k=>{const v=+q[k];if(isFinite(v)&&v>=1&&v<=10000)SPD[k]=Math.round(v);});}catch(e){}
+const saveSpd=()=>{try{localStorage.setItem("etaSpeedsV1",JSON.stringify(SPD));}catch(e){}};
+const typeSpeed=k=>SPD[normType(k)];
+const DEFTYPE="jet", DEFRAD=5;
 const cfg={size:40,rotate:true,showRadius:true};
-function svgOf(type,size){const ic=ICONS[type]||ICONS.unknown;
+function svgOf(type,size){const ic=ICONS[type]||ICONS.jet;
  return `<svg viewBox="0 0 32 32" width="${size}" height="${size}" fill="currentColor" stroke="#000" stroke-width=".8" stroke-linejoin="round">${ic.svg}</svg>`;}
 function makeIcon(t){const s=cfg.size,letter=(t.name.match(/\d+/)||[""])[0];
  return L.divIcon({className:"",html:`<div class="tm" style="--c:${t.color};width:${s}px;height:${s}px"><div class="rot" style="color:${t.color}">${svgOf(t.type,s)}</div><span class="lt">${esc(letter)}</span></div>`,iconSize:[s,s],iconAnchor:[s/2,s/2]});}
@@ -367,7 +375,18 @@ function bindTT(t){t.marker.unbindTooltip();t.marker.bindTooltip(esc(t.name),{pe
 function refreshCardIcons(){state.targets.forEach(t=>{if(t.els&&t.els.ci)t.els.ci.innerHTML=svgOf(t.type,22);});}
 function applyIcons(){state.targets.forEach(t=>{t.marker.setIcon(makeIcon(t));bindTT(t);});refreshCardIcons();ui(true);}
 function applyRadiusVisibility(){state.targets.forEach(t=>{if(cfg.showRadius){if(!state.map.hasLayer(t.rc))t.rc.addTo(state.map);}else state.map.removeLayer(t.rc);});}
+function buildSpeeds(){
+ const b=$("mspd");b.innerHTML="";
+ Object.keys(ICONS).forEach(k=>{
+  const r=document.createElement("div");r.className="row";
+  r.innerHTML='<span style="width:30px;display:flex;color:var(--g)">'+svgOf(k,26)+'</span><label style="flex:1">'+esc(ICONS[k].name)+'</label><input type="number" min="1" max="10000" step="10" inputmode="numeric" aria-label="Швидкість: '+esc(ICONS[k].name)+'">';
+  const i=r.querySelector("input");i.value=SPD[k];
+  i.oninput=()=>{const v=Math.round(+i.value);if(isFinite(v)&&v>=1&&v<=10000){SPD[k]=v;saveSpd();}};
+  i.onblur=()=>{i.value=SPD[k];};
+  b.appendChild(r);});
+}
 function buildMenu(){
+ buildSpeeds();
  const box=$("mlist");box.innerHTML="";
  if(!state.targets.length)box.innerHTML='<div class="note">Цілей немає. Додайте ціль кнопкою «+ Ціль».</div>';
  state.targets.forEach(t=>{
@@ -377,7 +396,7 @@ function buildMenu(){
   Object.keys(ICONS).forEach(k=>{
    const b=document.createElement("button");b.className="ib"+(t.type===k?" sel":"");
    b.innerHTML=svgOf(k,34)+"<span>"+ICONS[k].name+"</span>";
-   b.onclick=()=>{t.type=k;t.marker.setIcon(makeIcon(t));refreshCardIcons();buildMenu();ui(true);save();};
+   b.onclick=()=>{t.type=k;t.speed=typeSpeed(k);t.marker.setIcon(makeIcon(t));renderPanel();buildMenu();ui(true);save();};
    g.appendChild(b);
   });
   box.appendChild(d);
@@ -424,7 +443,7 @@ function removeDest(d){
 /* ---------- цілі ---------- */
 function addTarget(p,name,speed,destId,color,type,radius){
  const t={id:state.uid++,name:name,speed:speed,start:{lat:p.lat,lng:p.lng},cur:{lat:p.lat,lng:p.lng},color:color||PAL[state.col++%PAL.length],destId:destId,reached:false,
-  type:(type&&ICONS[type]?type:DEFTYPES[state.tn++%DEFTYPES.length]),radius:(radius>0?radius:DEFRAD)};
+  type:(type?normType(type):DEFTYPE),radius:(radius>0?radius:DEFRAD)};
  t.marker=L.marker(ll(p),{draggable:true,icon:makeIcon(t)}).addTo(state.map);
  bindTT(t);
  t.rc=L.circle(ll(p),{radius:t.radius*1000,color:t.color,weight:1,fillColor:t.color,fillOpacity:.1,dashArray:"4 4",interactive:false});
@@ -638,7 +657,7 @@ function shSanitize(v){
  const dests=arr(v.dests).slice(0,50).map(d=>Object.assign({id:String(d.id),name:nm(d.name,"Об'єкт"),radius:num(d.radius,0.5,200,5)},pt(d)));
  const targets=arr(v.targets).slice(0,50).map(t=>({id:String(t.id),name:nm(t.name,"Ціль"),speed:num(t.speed,1,10000,200),origin:pt(t.origin),start:pt(t.start),
   t0:num(t.t0,0,4e12,0),moving:!!t.moving,destId:t.destId==null?null:String(t.destId),color:/^#[0-9a-f]{6}$/i.test(t.color||"")?t.color:PAL[0],
-  type:ICONS[t.type]?t.type:"unknown",radius:num(t.radius,0.5,200,5)}));
+  type:normType(t.type),radius:num(t.radius,0.5,200,5)}));
  const haz=arr(v.haz).slice(0,100).map(h=>Object.assign({id:String(h.id),name:nm(h.name,"Небезпечний об'єкт"),address:String(h.address==null?"":h.address).slice(0,160)},pt(h)));
  return {rev:num(v.rev,0,4e12,0),uid:num(v.uid,1,1e9,1),dests:dests,targets:targets,haz:haz};
 }
@@ -733,8 +752,8 @@ function shMapClick(p,kind){
  if(kind==="d"){const id="d"+n;D.dests.push({id:id,name:"Об'єкт "+n,lat:p.lat,lng:p.lng,radius:5});
   const now=shNow();D.targets.forEach(t=>{if(t.destId==null){t.destId=id;t.start={lat:t.start.lat,lng:t.start.lng};t.t0=now;}});}
  else{
-  D.targets.push({id:"t"+n,name:"Ціль "+n,speed:180,origin:{lat:p.lat,lng:p.lng},start:{lat:p.lat,lng:p.lng},t0:shNow(),moving:false,destId:null,
-   color:PAL[n%PAL.length],type:DEFTYPES[n%DEFTYPES.length],radius:5});}
+  D.targets.push({id:"t"+n,name:"Ціль "+n,speed:typeSpeed(DEFTYPE),origin:{lat:p.lat,lng:p.lng},start:{lat:p.lat,lng:p.lng},t0:shNow(),moving:false,destId:null,
+   color:PAL[n%PAL.length],type:DEFTYPE,radius:5});}
  shTouch();shRebuild();shRenderList(true);
 }
 function shRenderAuth(){
@@ -785,7 +804,7 @@ function shRenderList(force){
    const setR=v=>{v=Math.max(0.5,+v||0.5);t.radius=v;E.rr.value=Math.min(50,v);E.rn.value=v;const e=en();if(e)e.rc.setRadius(v*1000);shTouch();};
    E.rr.oninput=()=>setR(E.rr.value);E.rn.oninput=()=>setR(E.rn.value);
    E.ds.onchange=()=>{shRebase(t);t.destId=E.ds.value||null;shTouch();};
-   E.ty.onchange=()=>{t.type=E.ty.value;const e=en();if(e)e.marker.setIcon(makeIcon(t));E.ci.innerHTML=svgOf(t.type,22);shTouch();};
+   E.ty.onchange=()=>{t.type=E.ty.value;const e=en();if(e)e.marker.setIcon(makeIcon(t));E.ci.innerHTML=svgOf(t.type,22);setSp(typeSpeed(t.type));};
    q("[data-del]").onclick=()=>shDelTarget(t);
   }
  });
@@ -1071,6 +1090,7 @@ function init(){
  renderPanel();ui(true);save();
  const menu=$("iconmenu");
  $("icons").onclick=()=>{buildMenu();menu.classList.add("on");};
+ $("shSpd").onclick=()=>{buildMenu();menu.classList.add("on");};
  $("mclose").onclick=()=>menu.classList.remove("on");
  menu.onclick=e=>{if(e.target===menu)menu.classList.remove("on");};
  $("msize").oninput=e=>{cfg.size=+e.target.value;$("msv").textContent=cfg.size;applyIcons();save();};
@@ -1113,7 +1133,7 @@ function init(){
   if(k.type==="add-t")setPick({type:"add-d"},"Тепер клікніть на карті — де об'єкт для цієї цілі");});
 
  function label(city){return "Точка "+(++state.ptn)+(city?" · "+city:"");}
- function createTargetAt(p,city){const t=addTarget(p,label(city),300,null);renderPanel();ui(true);save();return t;}
+ function createTargetAt(p,city){const t=addTarget(p,label(city),typeSpeed(DEFTYPE),null);renderPanel();ui(true);save();return t;}
  function createDestAt(p,city){const d=addDest(p,label(city));state.targets.forEach(t=>{if(t.destId==null){t.destId=d.id;t.reached=false;}});renderPanel();ui(true);save();return d;}
  function addFlow(kind){const c=$("city").value;
   if(c){const q=CITIES[c];const p={lat:q[0],lng:q[1]};kind==="t"?createTargetAt(p,c):createDestAt(p,c);map.panTo(q);
