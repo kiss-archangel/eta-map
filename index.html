@@ -247,7 +247,7 @@ details>:last-child{margin-bottom:14px}
    <svg class="logo" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="20" cy="20" r="16"/><circle cx="20" cy="20" r="9" opacity=".6"/><path d="M20 20 31 9"/><circle cx="20" cy="20" r="2.5" fill="currentColor" stroke="none"/><circle cx="29" cy="27" r="2.4" fill="#ffb43a" stroke="none"/></svg>
    <div><h1>ETA Map</h1><div class="sub">Час підльоту до об'єктів на карті</div></div>
   </header>
-  <div id="modes"><button id="mAuto" class="on"><svg class="i"><use href="#i-radar"/></svg>Авто</button><button id="mManual"><svg class="i"><use href="#i-hand"/></svg>Ручний</button><button id="mHaz"><svg class="i"><use href="#i-warn"/></svg>Небезпечні</button></div>
+  <div id="modes"><button id="mAuto" class="on"><svg class="i"><use href="#i-radar"/></svg>Спільна</button><button id="mManual"><svg class="i"><use href="#i-hand"/></svg>Ручний</button><button id="mHaz"><svg class="i"><use href="#i-warn"/></svg>Небезпечні</button></div>
   <div id="sbody">
 <div id="manual" style="display:none">
   <div class="ctl">
@@ -294,7 +294,6 @@ details>:last-child{margin-bottom:14px}
  <div class="note">Список спільний: його бачать усі відвідувачі, додавати й видаляти може лише адміністратор. Адреса шукається через OpenStreetMap; якщо її не знайдено, вкажіть координати або натисніть «На карті».</div>
 </div>
 <div id="auto">
- <div id="astat" class="note"></div>
  <div id="shstat" class="note"></div>
  <div id="shsetup" class="abn part" style="display:none">Цілі на карті ще не підключені до бази даних. Заповніть файл <b>firebase-config.js</b> за інструкцією з README.md.</div>
  <div id="shauth" style="margin-top:10px"></div>
@@ -304,8 +303,6 @@ details>:last-child{margin-bottom:14px}
  </div>
  <h3>Цілі</h3><div id="shlist"></div>
  <h3>Об'єкти</h3><div id="shdests"></div>
- <h3>Активні тривоги</h3><div id="alist"><div class="note">Не підключено.</div></div>
- <h3>Райони області</h3><div id="rlist"></div>
 </div>
  </div>
  </div>
@@ -553,80 +550,7 @@ function ui(force){
   top.innerHTML='<div class="t">Відлік до підльоту'+(simK()>1?' · x'+simK():'')+(state.running?'':' · ПАУЗА')+'</div>'+
    lines.slice(0,4).map(l=>`<div class="l"><span>${esc(l.n)}</span><b style="${l.s<0?'color:#ff5a5a':''}">${l.s<0?'ДОСЯГНУТО':fmtDur(l.s)}</b></div>`).join("");}
 }
-/* ---------- тривоги: Ukraine Alarm API (api.ukrainealarm.com) ---------- */
-const API_DIRECT="https://api.ukrainealarm.com";
-const API_KEY="75ca4fbf:b3f5278f0bab201af061ce4179659393";
-const API_PROXY="https://dry-block-56f8.developed-project.workers.dev"; // запасний шлях, якщо браузер не пускає прямий запит (CORS)
-const AUTO={sound:true,int:15,base:API_DIRECT,timer:null,busy:false,ids:null,districts:[],oblastId:null,prev:null,ctx:null};
-const ALERT_NAMES={AIR:"Повітряна тривога",ARTILLERY:"Артилерійський обстріл",URBAN_FIGHTS:"Вуличні бої",CHEMICAL:"Хімічна загроза",NUCLEAR:"Радіаційна загроза",UNKNOWN:"Невідома загроза"};
-const childrenOf=n=>n.regionChildList||n.regionChildren||n.children||n.states||[];
-function findNode(n,pred){if(!n||typeof n!=="object")return null;if(pred(n))return n;
- const ch=Array.isArray(n)?n:childrenOf(n);for(const c of ch){const f=findNode(c,pred);if(f)return f;}return null;}
-function aSave(){try{localStorage.setItem("etaMapAuto2",JSON.stringify({sound:AUTO.sound}));}catch(e){}}
-async function apiGet(path){
- const go=async base=>{
-  const r=await fetch(base+"/api/v3"+path,{headers:{"Accept":"application/json","Authorization":API_KEY},cache:"no-store"});
-  if(r.status===401||r.status===403)throw new Error("AUTH");
-  if(r.status===429)throw new Error("RATE");
-  if(!r.ok)throw new Error("HTTP "+r.status);
-  return r.json();};
- try{return await go(AUTO.base);}
- catch(e){
-  if(e instanceof TypeError&&AUTO.base===API_DIRECT){AUTO.base=API_PROXY;return await go(AUTO.base);}
-  throw e;}
-}
-function beep(){try{AUTO.ctx=AUTO.ctx||new (window.AudioContext||window.webkitAudioContext)();const c=AUTO.ctx;
- [0,0.45].forEach(d=>{const o=c.createOscillator(),g=c.createGain();o.frequency.value=880;o.connect(g);g.connect(c.destination);
-  g.gain.setValueAtTime(.2,c.currentTime+d);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+d+.4);o.start(c.currentTime+d);o.stop(c.currentTime+d+.4);});}catch(e){}}
-function aStatus(msg,bad){const el=$("astat");el.textContent=msg;el.style.color=bad?"#ff5a5a":"";}
 function placeTop(){$("top").style.marginTop="0";}
-function aError(e){
- const m=e&&e.message||"";
- if(m==="AUTH"){aStop();aStatus("Ключ API не прийнято (401/403). Перевірте ключ у коді сторінки.",true);}
- else if(m==="RATE")aStatus("Забагато запитів (429). Наступна спроба за кілька секунд.",true);
- else if(m==="NOREGION")aStatus("У дереві регіонів не знайдено «Рівненська область».",true);
- else if(/^HTTP/.test(m))aStatus("Помилка сервера: "+m,true);
- else aStatus("Не вдалося звернутись до api.ukrainealarm.com. Перевірте інтернет.",true);
-}
-async function aPoll(){
- if(AUTO.busy)return;AUTO.busy=true;
- try{
-  if(!AUTO.ids){
-   const reg=await apiGet("/regions");
-   const node=findNode(reg,n=>n&&typeof n.regionName==="string"&&/Рівненська область/i.test(n.regionName));
-   if(!node)throw new Error("NOREGION");
-   AUTO.ids=new Set();AUTO.districts=[];AUTO.oblastId=String(node.regionId);
-   (function walk(n,cur){const id=String(n.regionId);AUTO.ids.add(id);
-    if(n.regionType==="District"){cur={id:id,name:n.regionName,ids:new Set()};AUTO.districts.push(cur);}
-    if(cur)cur.ids.add(id);
-    childrenOf(n).forEach(c=>walk(c,cur));})(node,null);
-  }
-  const alerts=await apiGet("/alerts");
-  if(state.mode!=="auto")return;
-  aRender(Array.isArray(alerts)?alerts:[]);
-  aStatus("Тривоги оновлено "+fmtClock(Date.now())+" · кожні "+AUTO.int+" с",false);
- }catch(e){aError(e);}
- finally{AUTO.busy=false;}
-}
-function aTypes(a){return (a.activeAlerts||[]).map(x=>ALERT_NAMES[x.type]||x.type).filter((v,i,arr)=>arr.indexOf(v)===i).join(", ")||"тривога";}
-function aSince(a){const times=(a.activeAlerts||[]).map(x=>Date.parse(x.lastUpdate)).filter(x=>x);const t=times.length?Math.min.apply(null,times):Date.parse(a.lastUpdate);
- return t?new Date(t).toLocaleTimeString("uk-UA",{hour12:false,hour:"2-digit",minute:"2-digit"}):"—";}
-function aRender(list){
- const mine=list.filter(a=>AUTO.ids.has(String(a.regionId)));
- const al=$("alist");al.innerHTML="";
- if(!mine.length)al.innerHTML='<div class="note">Активних тривог немає.</div>';
- mine.forEach(a=>{const d=document.createElement("div");d.className="ar on";
-  d.innerHTML='<span>'+esc(a.regionName||a.regionId)+'<br><small>'+esc(aTypes(a))+'</small></span><small>з '+aSince(a)+'</small>';al.appendChild(d);});
- const rl=$("rlist");rl.innerHTML="";
- AUTO.districts.forEach(dis=>{const on=mine.some(a=>dis.ids.has(String(a.regionId)));
-  const d=document.createElement("div");d.className="ar"+(on?" on":"");
-  d.innerHTML='<span>'+esc(dis.name)+'</span><small>'+(on?"ТРИВОГА":"спокійно")+'</small>';rl.appendChild(d);});
-}
-function aStart(){
- clearInterval(AUTO.timer);AUTO.ids=null;AUTO.prev=null;AUTO.base=API_DIRECT;
- aStatus("Підключення до api.ukrainealarm.com…",false);aPoll();AUTO.timer=setInterval(aPoll,AUTO.int*1000);
-}
-function aStop(){clearInterval(AUTO.timer);AUTO.timer=null;}
 function manualLayers(){const a=[];state.targets.forEach(t=>{a.push(t.marker,t.line,t.arrow);if(cfg.showRadius)a.push(t.rc);});state.dests.forEach(d=>a.push(d.marker,d.circle));return a;}
 function showPanel(k){
  ["auto","manual","haz"].forEach(x=>{$(x).style.display=x===k?"":"none";});
@@ -636,9 +560,9 @@ function setMode(m){
  if(m===state.mode){showPanel(m);return;}
  const prev=state.mode;state.mode=m;showPanel(m);
  if(prev==="manual"){state.wasRunning=state.running;state.running=false;manualLayers().forEach(l=>state.map.removeLayer(l));$("top").style.display="none";}
- if(prev==="auto"){aStop();shHide();placeTop();}
+ if(prev==="auto"){shHide();placeTop();}
  if(m==="manual"){manualLayers().forEach(l=>{if(!state.map.hasLayer(l))l.addTo(state.map);});state.running=state.wasRunning!==false;ui(true);}
- if(m==="auto"){shShow();aStart();}
+ if(m==="auto"){shShow();}
 }
 
 /* ---------- спільна карта (Firebase Realtime Database) ---------- */
