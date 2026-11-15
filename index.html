@@ -282,6 +282,8 @@ details>:last-child{margin-bottom:14px}
  <h3>Небезпечні об'єкти</h3>
  <div id="hzNote" class="note" style="display:none"></div>
  <div id="hzAdm" class="card hzform" style="--c:var(--o)">
+  <div id="hzHidNote" class="abn part" style="display:none;margin:0 0 10px">Небезпечні об'єкти приховані від відвідувачів. Ви, як адміністратор, бачите їх.</div>
+  <div class="ctl"><button id="hzVis" class="o"></button></div>
   <div class="row"><input type="text" id="hzName" placeholder="Назва, напр. Епіцентр" aria-label="Назва" style="flex:1"></div>
   <div class="row"><input type="text" id="hzAddr" placeholder="Адреса, напр. вулиця Небожинського, 27" aria-label="Адреса" style="flex:1"></div>
   <div class="row"><input type="text" id="hzCity" placeholder="Населений пункт (необов'язково)" aria-label="Населений пункт" style="flex:1"></div>
@@ -567,7 +569,7 @@ function setMode(m){
 
 /* ---------- спільна карта (Firebase Realtime Database) ---------- */
 const SH={fb:null,db:null,auth:null,user:null,offset:0,localRev:0,cid:Math.random().toString(36).slice(2,10),ready:false,loading:false,connected:false,
- data:{rev:0,uid:1,targets:[],dests:[],haz:[]},lay:{t:new Map(),d:new Map()},els:{},layersOn:false,listSig:"",pushT:null,lastTick:0,lastRemote:0,oldDest:null};
+ data:{rev:0,uid:1,targets:[],dests:[],haz:[],hazHidden:false},lay:{t:new Map(),d:new Map()},els:{},layersOn:false,listSig:"",pushT:null,lastTick:0,lastRemote:0,oldDest:null};
 const shNow=()=>Date.now()+SH.offset;
 const shIsAdmin=()=>!!SH.user;
 function shStatus(msg,bad){const el=$("shstat");if(!el)return;
@@ -583,7 +585,7 @@ function shSanitize(v){
   t0:num(t.t0,0,4e12,0),moving:!!t.moving,destId:t.destId==null?null:String(t.destId),color:/^#[0-9a-f]{6}$/i.test(t.color||"")?t.color:PAL[0],
   type:normType(t.type),radius:num(t.radius,0.5,200,5)}));
  const haz=arr(v.haz).slice(0,100).map(h=>Object.assign({id:String(h.id),name:nm(h.name,"Небезпечний об'єкт"),address:String(h.address==null?"":h.address).slice(0,160)},pt(h)));
- return {rev:num(v.rev,0,4e12,0),uid:num(v.uid,1,1e9,1),dests:dests,targets:targets,haz:haz};
+ return {rev:num(v.rev,0,4e12,0),uid:num(v.uid,1,1e9,1),dests:dests,targets:targets,haz:haz,hazHidden:v.hazHidden===true};
 }
 function shPos(t,now,dOv){
  if(!t.moving)return t.start;
@@ -932,13 +934,17 @@ function init(){
    $("hzAdm").style.display=adm?"":"none";
    const nt=$("hzNote");
    if(adm){nt.style.display="none";}
-   else{nt.style.display="";nt.textContent=cfgOk?"Додавати й видаляти об'єкти може лише адміністратор. Увійти можна у вкладці «Авто», розділ «Вхід для адміністратора».":"Спільна карта ще не підключена до бази даних (див. README.md).";}
-   const s2=(adm?"A":"V")+"|"+L0.map(h=>[h.id,h.name,h.address,h.lat,h.lng].join("~")).join("|");
+   else{nt.style.display="";nt.textContent=cfgOk?"Додавати й видаляти об'єкти може лише адміністратор. Увійти можна у вкладці «Спільна», розділ «Вхід для адміністратора».":"Спільна карта ще не підключена до бази даних (див. README.md).";}
+   const hid=!!SH.data.hazHidden;
+   const s2=(adm?"A":"V")+(hid?"H":"S")+"|"+L0.map(h=>[h.id,h.name,h.address,h.lat,h.lng].join("~")).join("|");
    if(s2===sig&&lastAdm===adm)return;
    sig=s2;lastAdm=adm;
    layer.clearLayers();mk.clear();
+   {const vb=$("hzVis");vb.textContent=hid?"Показати всім":"Приховати для всіх";vb.className=hid?"":"o";$("hzHidNote").style.display=adm&&hid?"":"none";}
+   if(!adm&&hid){$("hzList").innerHTML='<div class="note">Адміністратор приховав небезпечні об\'єкти.</div>';return;}
    L0.forEach(h=>{
     const m=L.marker([h.lat,h.lng],{icon:ico,title:h.name}).addTo(layer);
+    if(adm&&hid)m.setOpacity(.45);
     m.bindPopup(()=>popup(h));m.bindTooltip(esc(h.name),{direction:"top",offset:[0,-20],className:"tt"});
     mk.set(h.id,m);});
    const box=$("hzList");box.innerHTML="";
@@ -951,6 +957,7 @@ function init(){
     box.appendChild(d);});
   }
   state.hzRender=render;
+  $("hzVis").onclick=()=>{if(!shIsAdmin())return;SH.data.hazHidden=!SH.data.hazHidden;shTouch();render();};
   function add(name,addr,lat,lng){
    if(!shIsAdmin()){msg("Додавати може лише адміністратор.");return;}
    const n=SH.data.uid++;
